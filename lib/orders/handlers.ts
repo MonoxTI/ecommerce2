@@ -10,7 +10,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/DB/prisma";
-import { getCurrentUser } from "@/lib/auth/jwt";
+import { getCurrentUser } from "@/lib/auth/JWT";
 import {
   ok,
   created,

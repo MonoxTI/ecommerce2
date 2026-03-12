@@ -1,9 +1,14 @@
-// middleware.ts  ← must live at the PROJECT ROOT (same level as package.json)
+// proxy.ts  ← must live at the PROJECT ROOT (same level as package.json)
+// Renamed from middleware.ts — Next.js 16 uses proxy.ts convention.
+
+ // ← fixes: crypto module not supported in Edge runtime
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAccessToken } from "@/lib/auth/JWT";
 import { PROTECTED_PREFIXES, ADMIN_PREFIXES } from "@/lib/middleware/auth";
 import { Role } from "@prisma/client";
+
+export const runtime = "nodejs";
 
 // ─── RATE LIMITER ────────────────────────────────────────────
 // In-memory sliding window — good for single-server / serverless.
@@ -62,14 +67,12 @@ function withSecurityHeaders(res: NextResponse): NextResponse {
       "Content-Security-Policy",
       [
         "default-src 'self'",
-        // Allow PayFast scripts on checkout pages
         "script-src 'self' 'unsafe-inline' https://www.payfast.co.za",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: https:",
         "font-src 'self'",
         "connect-src 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
         "frame-src https://www.payfast.co.za https://sandbox.payfast.co.za",
-        // Allow form submission to PayFast
         "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
       ].join("; ")
     );
@@ -100,7 +103,7 @@ function apiUnauth(message: string): NextResponse {
 
 // ─── MIDDLEWARE ──────────────────────────────────────────────
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Skip Next.js internals and static files
@@ -161,7 +164,6 @@ export async function middleware(req: NextRequest) {
 }
 
 // ─── MATCHER ─────────────────────────────────────────────────
-// Runs on all routes except static Next.js build files.
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
