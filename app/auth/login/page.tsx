@@ -22,7 +22,7 @@ export default function LoginPage() {
     if (error) return setError(error);
     if (data) {
       setAuth(data.user, data.accessToken);
-      router.push(data.user.role === "ADMIN" ? "/admin" : "/account");
+      router.push(data.user.role === "ADMIN" ? "/admin" : "/account/profile");
     }
   }
 
@@ -32,7 +32,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-10">
           <Link href="/" className="inline-block font-serif text-3xl tracking-[0.2em] text-[#F5F0E8]">
-            Aura<span className="text-[#C9A84C]">Wig</span>
+            <span className="text-[#C9A84C]">Nova</span>
           </Link>
           <p className="text-[#6B6B6B] text-sm mt-2 tracking-widest uppercase">Welcome back</p>
         </div>
@@ -87,7 +87,7 @@ export default function LoginPage() {
           <div className="mt-6 pt-6 border-t border-white/[0.06] text-center">
             <p className="text-[#6B6B6B] text-sm">
               Don't have an account?{" "}
-              <Link href="/register" className="text-[#C9A84C] hover:underline">Create one</Link>
+              <Link href="/auth/register" className="text-[#C9A84C] hover:underline">Create one</Link>
             </p>
           </div>
         </div>

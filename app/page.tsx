@@ -2,7 +2,7 @@
 // app/page.tsx
 import Link from "next/link";
 import Navbar from "@/components/navbar";
-//import Footer from "@/components/layout/Footer";
+import Footer from "@/components/footer";
 
 const featuredProducts = [
   { id: "1", slug: "body-wave-lace-front-18", name: "Body Wave Lace Front", price: 189900, category: "Lace Front", length: "18\"", image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&q=80", rating: 4.9, reviews: 124 },
@@ -60,8 +60,8 @@ export default function HomePage() {
         <div className="relative z-20 max-w-screen-xl mx-auto px-6 md:px-12 pt-28 pb-16 w-full">
           <div className="max-w-2xl">
             <SectionLabel>Premium Human Hair</SectionLabel>
-            <h1 className="font-serif text-6xl md:text-8xl font-light leading-none text-[#F5F0E8] mb-1">Wear Your</h1>
-            <h1 className="font-serif text-6xl md:text-8xl font-light leading-none italic text-[#C9A84C] mb-8">Crown.</h1>
+            <h1 className="font-serif text-6xl md:text-8xl font-light leading-none italic text-[#C9A84C] mb-8">NOVAA</h1>
+            <h3 className="font-serif text-2xl md:text-4xl font-light leading-snug text-[#F5F0E8] mb-1">elevated beauty, with purpose</h3>
             <p className="text-[#C8BFB0] text-base leading-relaxed max-w-md mb-10">
               Handcrafted wigs using 100% virgin human hair. Lace so natural, no one will know. From boardroom to ballroom — you set the standard.
             </p>
@@ -231,7 +231,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      
+      <Footer />
     </div>
   );
 }

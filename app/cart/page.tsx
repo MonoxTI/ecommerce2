@@ -21,7 +21,7 @@ export default function CartPage() {
     <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center pt-20">
       <div className="text-center">
         <p className="text-[#6B6B6B] mb-4">Please sign in to view your cart</p>
-        <Link href="/login" className="bg-[#C9A84C] text-[#0A0A0A] px-6 py-3 text-xs tracking-widest uppercase font-medium hover:bg-[#E2C97E] transition-colors">
+        <Link href="/auth/login" className="bg-[#C9A84C] text-[#0A0A0A] px-6 py-3 text-xs tracking-widest uppercase font-medium hover:bg-[#E2C97E] transition-colors">
           Sign In
         </Link>
       </div>

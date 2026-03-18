@@ -8,7 +8,6 @@ import { useAuthStore } from "@/store/authStore";
 const NAV = [
   { href: "/admin",            label: "Dashboard",  icon: "▦" },
   { href: "/admin/orders",     label: "Orders",     icon: "📦" },
-  { href: "/admin/products",   label: "Products",   icon: "✦" },
   { href: "/admin/customers",  label: "Customers",  icon: "👤" },
   { href: "/admin/inventory",  label: "Inventory",  icon: "📊" },
   { href: "/admin/coupons",    label: "Coupons",    icon: "🏷" },
@@ -33,7 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logo */}
         <div className="px-5 py-6 border-b border-white/[0.06]">
           <Link href="/" className="font-serif text-xl tracking-[0.2em] text-[#F5F0E8]">
-            Aura<span className="text-[#C9A84C]">Wig</span>
+            <span className="text-[#C9A84C]">Novaa</span>
           </Link>
           <p className="text-[#6B6B6B] text-xs mt-1 tracking-widest uppercase">Admin</p>
         </div>

@@ -19,7 +19,7 @@ export default function RegisterPage() {
     const { error } = await authApi.register({ name: form.name, email: form.email, phone: form.phone, password: form.password });
     setLoading(false);
     if (error) return setError(error);
-    router.push("/login?registered=1");
+    router.push("/auth/login?registered=1");
   }
 
   const field = (key: keyof typeof form, label: string, type = "text", placeholder = "") => (
@@ -40,7 +40,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
           <Link href="/" className="inline-block font-serif text-3xl tracking-[0.2em] text-[#F5F0E8]">
-            Aura<span className="text-[#C9A84C]">Wig</span>
+            <span className="text-[#C9A84C]">Nova</span>
           </Link>
           <p className="text-[#6B6B6B] text-sm mt-2 tracking-widest uppercase">Create your account</p>
         </div>
@@ -74,7 +74,7 @@ export default function RegisterPage() {
           <div className="mt-6 pt-6 border-t border-white/[0.06] text-center">
             <p className="text-[#6B6B6B] text-sm">
               Already have an account?{" "}
-              <Link href="/login" className="text-[#C9A84C] hover:underline">Sign in</Link>
+              <Link href="/auth/login" className="text-[#C9A84C] hover:underline">Sign in</Link>
             </p>
           </div>
         </div>

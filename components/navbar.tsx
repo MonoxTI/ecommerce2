@@ -1,118 +1,121 @@
 "use client";
+// components/navbar.tsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
 
 export default function Navbar() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { user, token, logout } = useAuthStore();
+  const cart = useCartStore((s) => s.cart);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const cartCount = cart?.itemCount ?? 0;
 
   return (
-    <nav className="bg-gray-900 text-white shadow-md">
-      {/* Top Announcement Bar */}
-      <div className="bg-pink-700 text-xs text-center py-2 font-medium">
-        Free Shipping on Orders Over $150 | Use Code: <span className="font-bold">WIGLOVE20</span>
-      </div>
+    <>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        scrolled
+          ? "bg-[#0A0A0A]/95 backdrop-blur-md border-b border-[#C9A84C]/15 py-3"
+          : "bg-transparent border-b border-transparent py-5"
+      }`}>
+        <div className="max-w-screen-xl mx-auto px-6 md:px-12 flex items-center justify-between">
 
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-20">
-          
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link href="/" className="text-2xl font-serif font-bold tracking-wider hover:text-pink-400 transition">
-              LuxeLocks
-            </Link>
+          {/* Left — Nav links (desktop) */}
+          <div className="hidden md:flex items-center gap-8">
+            {[["Shop", "/shop"], ["Collections", "/shop?category=all"], ["About", "/about"]].map(([label, href]) => (
+              <Link key={label} href={href}
+                className="text-[#C8BFB0] hover:text-[#C9A84C] text-xs tracking-[0.15em] uppercase transition-colors duration-200">
+                {label}
+              </Link>
+            ))}
           </div>
 
-          {/* Desktop Navigation Links */}
-          <div className="hidden md:flex space-x-8">
-            <Link href="/shop/all" className="text-gray-300 hover:text-white hover:underline decoration-pink-500 underline-offset-4 transition">
-              Shop All
-            </Link>
-            <Link href="/shop/human-hair" className="text-gray-300 hover:text-white hover:underline decoration-pink-500 underline-offset-4 transition">
-              Human Hair
-            </Link>
-            <Link href="/shop/synthetic" className="text-gray-300 hover:text-white hover:underline decoration-pink-500 underline-offset-4 transition">
-              Synthetic
-            </Link>
-            <Link href="/shop/accessories" className="text-gray-300 hover:text-white hover:underline decoration-pink-500 underline-offset-4 transition">
-              Accessories
-            </Link>
-          </div>
-
-          {/* Right Side Icons (Search, Cart, Account) */}
-          <div className="hidden md:flex items-center space-x-6">
-            {/* Search Icon */}
-            <button className="text-gray-300 hover:text-white transition">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          {/* Right — Icons */}
+          <div className="flex items-center gap-5">
+            {/* Search */}
+            <button aria-label="Search"
+              className="text-[#C8BFB0] hover:text-[#C9A84C] transition-colors duration-200 hidden md:block">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
             </button>
 
-            {/* Account Icon */}
-            <Link href="/account" className="text-gray-300 hover:text-white transition">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+            {/* Account */}
+            <Link href= "/auth/login"
+              aria-label="Account"
+              className="text-[#C8BFB0] hover:text-[#C9A84C] transition-colors duration-200 hidden md:block">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
               </svg>
             </Link>
 
-            {/* Cart Icon with Badge */}
-            <Link href="/cart" className="text-gray-300 hover:text-white transition relative">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+            {/* Cart */}
+            <Link href="/cart" aria-label="Cart" className="relative text-[#C8BFB0] hover:text-[#C9A84C] transition-colors duration-200">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                <line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
               </svg>
-              <span className="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                2
-              </span>
-            </Link>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="text-gray-300 hover:text-white focus:outline-none"
-            >
-              {isMobileMenuOpen ? (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                </svg>
+              {cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-[#C9A84C] text-[#0A0A0A] text-[0.55rem] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {cartCount > 9 ? "9+" : cartCount}
+                </span>
               )}
+            </Link>
+
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Menu"
+              className="md:hidden text-[#C8BFB0] hover:text-[#C9A84C] transition-colors">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                {menuOpen
+                  ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>
+                  : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>
+                }
+              </svg>
             </button>
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile Menu Dropdown */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-gray-800 border-t border-gray-700">
-          <div className="px-4 pt-2 pb-6 space-y-2">
-            <Link href="/shop/all" className="block px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md">
-              Shop All
-            </Link>
-            <Link href="/shop/human-hair" className="block px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md">
-              Human Hair
-            </Link>
-            <Link href="/shop/synthetic" className="block px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md">
-              Synthetic
-            </Link>
-            <Link href="/shop/accessories" className="block px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md">
-              Accessories
-            </Link>
-            <div className="border-t border-gray-700 my-2 pt-2">
-              <Link href="/account" className="block px-3 py-2 text-gray-300 hover:text-white">
-                My Account
-              </Link>
-              <Link href="/cart" className="block px-3 py-2 text-gray-300 hover:text-white">
-                Cart (2)
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-    </nav>
+      {/* Mobile drawer */}
+      <div className={`fixed inset-0 z-40 bg-[#0A0A0A] flex flex-col items-center justify-center gap-8 transition-all duration-500 ${
+        menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      }`}>
+        {/* Gold top line */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C] to-transparent" />
+
+        {[
+          ["Shop",    "/shop"],
+          ["Collections", "/shop?category=all"],
+          ["About",   "/about"],
+          ["Cart",    "/cart"],
+          user ? ["Account", user.role === "ADMIN" ? "/admin" : "/account/orders"] : ["Sign In", "/login"],
+        ].map(([label, href]) => (
+          <Link key={label as string} href={href as string}
+            onClick={() => setMenuOpen(false)}
+            className="font-serif text-4xl font-light text-[#F5F0E8] hover:text-[#C9A84C] tracking-[0.05em] transition-colors duration-200">
+            {label}
+          </Link>
+        ))}
+
+        {user && (
+          <button
+            onClick={() => { logout(); setMenuOpen(false); }}
+            className="text-[#6B6B6B] hover:text-red-400 text-xs tracking-[0.15em] uppercase transition-colors mt-4">
+            Sign Out
+          </button>
+        )}
+      </div>
+    </>
   );
 }
