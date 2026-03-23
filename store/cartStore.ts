@@ -1,17 +1,17 @@
-// store/cartStore.ts
 "use client";
+// store/cartStore.ts
 import { create } from "zustand";
 import { cartApi, Cart } from "@/lib/api";
 
 interface CartState {
-  cart:      Cart | null;
-  isLoading: boolean;
-  fetchCart: (token: string) => Promise<void>;
-  addItem:   (variantId: string, quantity: number, token: string) => Promise<string | null>;
-  updateItem:(itemId: string, quantity: number, token: string) => Promise<void>;
-  removeItem:(itemId: string, token: string) => Promise<void>;
-  clearCart: (token: string) => Promise<void>;
-  reset:     () => void;
+  cart:       Cart | null;
+  isLoading:  boolean;
+  fetchCart:  (token: string) => Promise<void>;
+  addItem:    (variantId: string, quantity: number, token: string) => Promise<string | null>;
+  updateItem: (itemId: string, quantity: number, token: string) => Promise<void>;
+  removeItem: (itemId: string, token: string) => Promise<void>;
+  clearCart:  (token: string) => Promise<void>;
+  reset:      () => void;
 }
 
 export const useCartStore = create<CartState>((set) => ({
@@ -20,8 +20,9 @@ export const useCartStore = create<CartState>((set) => ({
 
   fetchCart: async (token) => {
     set({ isLoading: true });
-    const { data } = await cartApi.get(token);
+    const { data, error } = await cartApi.get(token);
     if (data) set({ cart: data });
+    // If 401, cart stays null — the page will handle the redirect
     set({ isLoading: false });
   },
 

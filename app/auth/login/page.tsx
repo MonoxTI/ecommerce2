@@ -26,43 +26,60 @@ export default function LoginPage() {
     }
   }
 
+  // Light theme color palette (consistent with site-wide styles)
+  const colors = {
+    bg: "bg-[#FAFAFA]",
+    card: "bg-white",
+    text: "text-[#1A1A1A]",
+    textMuted: "text-[#666666]",
+    textLight: "text-[#888888]",
+    accent: "text-[#C9A84C]",
+    accentBg: "bg-[#C9A84C]",
+    accentBgHover: "hover:bg-[#B8963C]",
+    border: "border-[#E5E5E5]",
+    inputBg: "bg-white",
+    inputBorder: "border-[#E5E5E5]",
+    inputFocus: "focus:border-[#C9A84C]",
+    errorBg: "bg-red-50",
+    errorBorder: "border-red-200",
+    errorText: "text-red-600",
+  };
+
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-4 pt-20">
+    <div className={`min-h-screen ${colors.bg} flex items-center justify-center px-4 pt-20`}>
       <div className="w-full max-w-md">
+        
         {/* Logo */}
         <div className="text-center mb-10">
-          <Link href="/" className="inline-block font-serif text-3xl tracking-[0.2em] text-[#F5F0E8]">
-            <span className="text-[#C9A84C]">Nova</span>
-          </Link>
-          <p className="text-[#6B6B6B] text-sm mt-2 tracking-widest uppercase">Welcome back</p>
+          <p className={`${colors.textLight} text-sm mt-2 tracking-widest uppercase`}>Welcome back</p>
         </div>
 
         {/* Card */}
-        <div className="border border-white/[0.06] bg-[#111111] p-8">
-          <h1 className="font-serif text-2xl text-[#F5F0E8] font-light mb-6">Sign In</h1>
+        <div className={`border ${colors.border} ${colors.card} p-8 shadow-sm rounded-sm`}>
+          <h1 className={`font-serif text-2xl ${colors.text} font-light mb-6`}>Sign In</h1>
 
           {error && (
-            <div className="mb-5 px-4 py-3 bg-red-950/40 border border-red-800/50 text-red-400 text-sm">
+            <div className={`mb-5 px-4 py-3 ${colors.errorBg} border ${colors.errorBorder} ${colors.errorText} text-sm rounded-sm`}>
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-[#6B6B6B] text-xs tracking-widest uppercase mb-2">Email</label>
+              <label className={`block ${colors.textLight} text-xs tracking-widest uppercase mb-2`}>Email</label>
               <input
                 type="email" required
                 value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full bg-[#1A1A1A] border border-white/[0.06] text-[#F5F0E8] px-4 py-3 text-sm outline-none focus:border-[#C9A84C] transition-colors placeholder:text-[#6B6B6B]"
+                className={`w-full ${colors.inputBg} border ${colors.inputBorder} ${colors.text} px-4 py-3 text-sm outline-none ${colors.inputFocus} transition-colors placeholder:${colors.textLight} rounded-sm focus:ring-1 focus:ring-[#C9A84C]/30`}
                 placeholder="your@email.com"
               />
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-[#6B6B6B] text-xs tracking-widest uppercase">Password</label>
-                <Link href="/forgot-password" className="text-[#C9A84C] text-xs hover:underline">
+                <label className={`${colors.textLight} text-xs tracking-widest uppercase`}>Password</label>
+                <Link href="/forgot-password" className={`${colors.accent} text-xs hover:underline`}>
                   Forgot password?
                 </Link>
               </div>
@@ -70,7 +87,7 @@ export default function LoginPage() {
                 type="password" required
                 value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
-                className="w-full bg-[#1A1A1A] border border-white/[0.06] text-[#F5F0E8] px-4 py-3 text-sm outline-none focus:border-[#C9A84C] transition-colors placeholder:text-[#6B6B6B]"
+                className={`w-full ${colors.inputBg} border ${colors.inputBorder} ${colors.text} px-4 py-3 text-sm outline-none ${colors.inputFocus} transition-colors placeholder:${colors.textLight} rounded-sm focus:ring-1 focus:ring-[#C9A84C]/30`}
                 placeholder="••••••••"
               />
             </div>
@@ -78,19 +95,20 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#C9A84C] hover:bg-[#E2C97E] text-[#0A0A0A] py-3 text-xs font-medium tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className={`w-full ${colors.accentBg} ${colors.accentBgHover} text-white py-3 text-xs font-medium tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2 rounded-sm shadow-sm`}
             >
               {loading ? "Signing in…" : "Sign In"}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-white/[0.06] text-center">
-            <p className="text-[#6B6B6B] text-sm">
+          <div className={`mt-6 pt-6 border-t ${colors.border} text-center`}>
+            <p className={`${colors.textMuted} text-sm`}>
               Don't have an account?{" "}
-              <Link href="/auth/register" className="text-[#C9A84C] hover:underline">Create one</Link>
+              <Link href="/auth/register" className={`${colors.accent} hover:underline`}>Create one</Link>
             </p>
           </div>
         </div>
+
       </div>
     </div>
   );

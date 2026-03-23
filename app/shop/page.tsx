@@ -1,875 +1,589 @@
 "use client";
+// app/shop/page.tsx
 
 import { useState, useEffect } from "react";
-import Navbar from "@/components/navbar";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { productsApi, cartApi, Product, Category } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
 
-const products = [
-  {
-    id: 1,
-    name: "Silk Lace Frontal",
-    length: "22 inch",
-    price: 2850,
-    tag: "Bestseller",
-    color: "Natural Black",
-    img: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&q=80",
-  },
-  {
-    id: 2,
-    name: "Body Wave Closure",
-    length: "18 inch",
-    price: 1990,
-    tag: "New",
-    color: "Chestnut Brown",
-    img: "https://images.unsplash.com/photo-1560869713-7d0a29430803?w=600&q=80",
-  },
-  {
-    id: 3,
-    name: "Deep Curl Full Lace",
-    length: "24 inch",
-    price: 3400,
-    tag: "Limited",
-    color: "Jet Black",
-    img: "https://images.unsplash.com/photo-1595475884562-073c30d45670?w=600&q=80",
-  },
-  {
-    id: 4,
-    name: "Straight HD Lace",
-    length: "20 inch",
-    price: 2200,
-    tag: null,
-    color: "Dark Brown",
-    img: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=600&q=80",
-  },
+// ─── HELPERS ─────────────────────────────────────────────────
+
+function formatPrice(cents: number) {
+  return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}`;
+}
+
+const SORT_OPTIONS = [
+  { value: "newest",     label: "Newest" },
+  { value: "price_asc",  label: "Price: Low → High" },
+  { value: "price_desc", label: "Price: High → Low" },
 ];
 
-const navLinks = ["Collection", "About", "Care Guide", "Contact"];
+const LENGTHS   = ["12", "14", "16", "18", "20", "22", "24", "26", "28"];
+const LACE_TYPES = ["Lace Front", "Full Lace", "HD Lace", "4x4", "13x4"];
+const COLORS     = ["Natural Black", "Jet Black", "Dark Brown", "Medium Brown", "Blonde"];
 
-export default function HomePage() {
-  const [scrolled, setScrolled] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
-  const [hoveredProduct, setHoveredProduct] = useState<number | null>(null);
-  const [toastVisible, setToastVisible] = useState(false);
-  const [toastMsg, setToastMsg] = useState("");
+// ─── ENHANCED PRODUCT CARD ───────────────────────────────────
 
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const addToCart = (name: string) => {
-    setCartCount((c) => c + 1);
-    setToastMsg(`${name} added to bag`);
-    setToastVisible(true);
-    setTimeout(() => setToastVisible(false), 2800);
-  };
-
+function ProductCard({ product, onAddToCart }: { product: Product; onAddToCart: (p: Product) => void }) {
+  const router = useRouter();
+  const [hovered, setHovered] = useState(false);
+  const image = product.images[0]?.url;
+  const badge = (product as any).tags?.[0];
+ 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500&display=swap');
-
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        :root {
-          --cream: #FAF8F5;
-          --warm-white: #F5F2ED;
-          --sand: #E8E0D4;
-          --taupe: #C4B5A5;
-          --mink: #8C7B6B;
-          --espresso: #2C1F14;
-          --gold: #B8965A;
-          --gold-light: #D4AF6E;
-        }
-
-        html { scroll-behavior: smooth; }
-
-        body {
-          font-family: 'Jost', sans-serif;
-          background: var(--cream);
-          color: var(--espresso);
-          overflow-x: hidden;
-        }
-
-        /* NAV */
-        nav {
-          position: fixed;
-          top: 0; left: 0; right: 0;
-          z-index: 100;
-          padding: 0 4rem;
-          height: 72px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          transition: all 0.4s ease;
-        }
-        nav.scrolled {
-          background: rgba(250, 248, 245, 0.95);
-          backdrop-filter: blur(12px);
-          border-bottom: 1px solid var(--sand);
-        }
-        .nav-logo {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: 1.6rem;
-          font-weight: 300;
-          letter-spacing: 0.15em;
-          color: var(--espresso);
-          text-decoration: none;
-        }
-        .nav-logo span { color: var(--gold); }
-        .nav-links {
-          display: flex;
-          gap: 2.5rem;
-          list-style: none;
-        }
-        .nav-links a {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.75rem;
-          font-weight: 400;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: var(--espresso);
-          text-decoration: none;
-          transition: color 0.2s;
-        }
-        .nav-links a:hover { color: var(--gold); }
-        .nav-right {
-          display: flex;
-          align-items: center;
-          gap: 1.5rem;
-        }
-        .cart-btn {
-          position: relative;
-          background: none;
-          border: none;
-          cursor: pointer;
-          font-family: 'Jost', sans-serif;
-          font-size: 0.75rem;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: var(--espresso);
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 1.2rem;
-          border: 1px solid var(--espresso);
-          transition: all 0.25s;
-        }
-        .cart-btn:hover {
-          background: var(--espresso);
-          color: var(--cream);
-        }
-        .cart-badge {
-          background: var(--gold);
-          color: white;
-          font-size: 0.6rem;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        /* HERO */
-        .hero {
-          min-height: 100vh;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          padding-top: 72px;
-        }
-        .hero-left {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          padding: 6rem 5rem 6rem 4rem;
-          position: relative;
-        }
-        .hero-eyebrow {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.7rem;
-          font-weight: 400;
-          letter-spacing: 0.35em;
-          text-transform: uppercase;
-          color: var(--gold);
-          margin-bottom: 1.5rem;
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-        .hero-eyebrow::before {
-          content: '';
-          display: block;
-          width: 40px;
-          height: 1px;
-          background: var(--gold);
-        }
-        .hero-title {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: clamp(3.5rem, 5.5vw, 5.5rem);
-          font-weight: 300;
-          line-height: 1.05;
-          color: var(--espresso);
-          margin-bottom: 2rem;
-        }
-        .hero-title em {
-          font-style: italic;
-          color: var(--mink);
-        }
-        .hero-desc {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.95rem;
-          font-weight: 300;
-          line-height: 1.8;
-          color: var(--mink);
-          max-width: 380px;
-          margin-bottom: 3rem;
-        }
-        .hero-cta-group {
-          display: flex;
-          gap: 1rem;
-          align-items: center;
-        }
-        .btn-primary {
-          background: var(--espresso);
-          color: var(--cream);
-          border: none;
-          padding: 0.9rem 2.5rem;
-          font-family: 'Jost', sans-serif;
-          font-size: 0.75rem;
-          font-weight: 400;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: background 0.25s;
-          text-decoration: none;
-          display: inline-block;
-        }
-        .btn-primary:hover { background: var(--gold); }
-        .btn-ghost {
-          background: none;
-          color: var(--espresso);
-          border: none;
-          padding: 0.9rem 1.5rem;
-          font-family: 'Jost', sans-serif;
-          font-size: 0.75rem;
-          font-weight: 400;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 0.6rem;
-          text-decoration: none;
-          transition: color 0.25s;
-        }
-        .btn-ghost:hover { color: var(--gold); }
-        .btn-ghost::after {
-          content: '→';
-          transition: transform 0.25s;
-        }
-        .btn-ghost:hover::after { transform: translateX(4px); }
-
-        .hero-stats {
-          position: absolute;
-          bottom: 4rem;
-          left: 4rem;
-          display: flex;
-          gap: 3rem;
-        }
-        .stat-item {}
-        .stat-number {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: 2rem;
-          font-weight: 300;
-          color: var(--espresso);
-          line-height: 1;
-        }
-        .stat-label {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.65rem;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: var(--taupe);
-          margin-top: 0.3rem;
-        }
-
-        .hero-right {
-          position: relative;
-          overflow: hidden;
-          background: var(--warm-white);
-        }
-        .hero-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-          transition: transform 0.8s ease;
-        }
-        .hero-right:hover .hero-img { transform: scale(1.03); }
-        .hero-img-overlay {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(44,31,20,0.08) 0%, transparent 60%);
-        }
-        .hero-badge {
-          position: absolute;
-          bottom: 3rem;
-          left: -1.5rem;
-          background: var(--cream);
-          border: 1px solid var(--sand);
-          padding: 1.2rem 1.8rem;
-          box-shadow: 0 8px 40px rgba(44,31,20,0.12);
-        }
-        .hero-badge-title {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: 1.1rem;
-          font-weight: 400;
-          color: var(--espresso);
-        }
-        .hero-badge-sub {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.65rem;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: var(--gold);
-          margin-top: 0.2rem;
-        }
-
-        /* MARQUEE */
-        .marquee-section {
-          background: var(--espresso);
-          padding: 1.1rem 0;
-          overflow: hidden;
-        }
-        .marquee-track {
-          display: flex;
-          gap: 4rem;
-          animation: marquee 25s linear infinite;
-          width: max-content;
-        }
-        @keyframes marquee {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-        .marquee-item {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.65rem;
-          letter-spacing: 0.35em;
-          text-transform: uppercase;
-          color: var(--taupe);
-          white-space: nowrap;
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-        .marquee-dot {
-          width: 3px; height: 3px;
-          background: var(--gold);
-          border-radius: 50%;
-        }
-
-        /* SECTION COMMON */
-        section { padding: 7rem 4rem; }
-        .section-label {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.65rem;
-          letter-spacing: 0.35em;
-          text-transform: uppercase;
-          color: var(--gold);
-          margin-bottom: 1rem;
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-        .section-label::before {
-          content: '';
-          width: 30px;
-          height: 1px;
-          background: var(--gold);
-        }
-        .section-title {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: clamp(2rem, 3.5vw, 3rem);
-          font-weight: 300;
-          color: var(--espresso);
-          line-height: 1.2;
-        }
-
-        /* COLLECTION */
-        .collection-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          margin-bottom: 3.5rem;
-        }
-        .product-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 1.5rem;
-        }
-        .product-card {
-          cursor: pointer;
-          position: relative;
-        }
-        .product-img-wrap {
-          position: relative;
-          overflow: hidden;
-          background: var(--warm-white);
-          aspect-ratio: 3/4;
-        }
-        .product-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-          transition: transform 0.6s ease;
-        }
-        .product-card:hover .product-img { transform: scale(1.06); }
-        .product-tag {
-          position: absolute;
-          top: 1rem;
-          left: 1rem;
-          background: var(--espresso);
-          color: var(--cream);
-          font-family: 'Jost', sans-serif;
-          font-size: 0.6rem;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          padding: 0.3rem 0.7rem;
-        }
-        .product-tag.new { background: var(--gold); }
-        .product-tag.limited {
-          background: none;
-          border: 1px solid var(--espresso);
-          color: var(--espresso);
-        }
-        .product-add-btn {
-          position: absolute;
-          bottom: -50px;
-          left: 0; right: 0;
-          background: rgba(44,31,20,0.92);
-          color: var(--cream);
-          border: none;
-          padding: 0.9rem;
-          font-family: 'Jost', sans-serif;
-          font-size: 0.7rem;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: bottom 0.3s ease;
-          backdrop-filter: blur(4px);
-        }
-        .product-card:hover .product-add-btn { bottom: 0; }
-        .product-add-btn:hover { background: var(--gold) !important; }
-
-        .product-info { padding: 1.2rem 0; }
-        .product-name {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: 1.15rem;
-          font-weight: 400;
-          color: var(--espresso);
-        }
-        .product-meta {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-top: 0.4rem;
-        }
-        .product-color {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.7rem;
-          letter-spacing: 0.1em;
-          color: var(--taupe);
-        }
-        .product-price {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.85rem;
-          font-weight: 500;
-          color: var(--espresso);
-        }
-
-        /* FEATURES */
-        .features-section {
-          background: var(--espresso);
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          padding: 0;
-        }
-        .feature-item {
-          padding: 5rem 3.5rem;
-          border-right: 1px solid rgba(255,255,255,0.08);
-        }
-        .feature-item:last-child { border-right: none; }
-        .feature-icon {
-          font-size: 1.8rem;
-          margin-bottom: 1.5rem;
-          color: var(--gold);
-        }
-        .feature-title {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: 1.4rem;
-          font-weight: 300;
-          color: var(--cream);
-          margin-bottom: 0.8rem;
-        }
-        .feature-desc {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.85rem;
-          font-weight: 300;
-          line-height: 1.8;
-          color: var(--taupe);
-        }
-
-        /* EDITORIAL */
-        .editorial {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 0;
-          padding: 0;
-          min-height: 600px;
-        }
-        .editorial-img-wrap {
-          overflow: hidden;
-          position: relative;
-        }
-        .editorial-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-          min-height: 600px;
-          transition: transform 0.8s ease;
-        }
-        .editorial-img-wrap:hover .editorial-img { transform: scale(1.03); }
-        .editorial-content {
-          background: var(--warm-white);
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          padding: 6rem 5rem;
-        }
-        .editorial-quote {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: clamp(1.8rem, 3vw, 2.6rem);
-          font-weight: 300;
-          font-style: italic;
-          color: var(--espresso);
-          line-height: 1.4;
-          margin-bottom: 2rem;
-        }
-        .editorial-sub {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.85rem;
-          font-weight: 300;
-          line-height: 1.9;
-          color: var(--mink);
-          margin-bottom: 2.5rem;
-          max-width: 400px;
-        }
-
-        /* TOAST */
-        .toast {
-          position: fixed;
-          bottom: 2rem;
-          right: 2rem;
-          background: var(--espresso);
-          color: var(--cream);
-          padding: 1rem 1.8rem;
-          font-family: 'Jost', sans-serif;
-          font-size: 0.8rem;
-          letter-spacing: 0.1em;
-          z-index: 999;
-          display: flex;
-          align-items: center;
-          gap: 0.8rem;
-          transform: translateY(80px);
-          opacity: 0;
-          transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-          pointer-events: none;
-        }
-        .toast.visible {
-          transform: translateY(0);
-          opacity: 1;
-        }
-        .toast-check { color: var(--gold); font-size: 1rem; }
-
-        /* FOOTER */
-        footer {
-          background: var(--espresso);
-          padding: 4rem;
-          display: grid;
-          grid-template-columns: 1.5fr 1fr 1fr 1fr;
-          gap: 3rem;
-          border-top: 1px solid rgba(255,255,255,0.06);
-        }
-        .footer-brand {}
-        .footer-logo {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: 1.5rem;
-          font-weight: 300;
-          letter-spacing: 0.15em;
-          color: var(--cream);
-          margin-bottom: 1rem;
-        }
-        .footer-logo span { color: var(--gold); }
-        .footer-tagline {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.8rem;
-          font-weight: 300;
-          line-height: 1.8;
-          color: var(--taupe);
-          max-width: 240px;
-        }
-        .footer-col-title {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.65rem;
-          letter-spacing: 0.25em;
-          text-transform: uppercase;
-          color: var(--cream);
-          margin-bottom: 1.2rem;
-        }
-        .footer-links { list-style: none; }
-        .footer-links li { margin-bottom: 0.7rem; }
-        .footer-links a {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.8rem;
-          font-weight: 300;
-          color: var(--taupe);
-          text-decoration: none;
-          transition: color 0.2s;
-        }
-        .footer-links a:hover { color: var(--gold-light); }
-        .footer-bottom {
-          background: var(--espresso);
-          padding: 1.5rem 4rem;
-          border-top: 1px solid rgba(255,255,255,0.06);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .footer-copy {
-          font-family: 'Jost', sans-serif;
-          font-size: 0.7rem;
-          letter-spacing: 0.1em;
-          color: var(--taupe);
-        }
-        .footer-copy span { color: var(--gold); }
-
-        @media (max-width: 900px) {
-          nav { padding: 0 2rem; }
-          .nav-links { display: none; }
-          .hero { grid-template-columns: 1fr; }
-          .hero-right { min-height: 50vh; }
-          .hero-stats { bottom: 2rem; left: 2rem; gap: 2rem; }
-          .product-grid { grid-template-columns: 1fr 1fr; }
-          .features-section { grid-template-columns: 1fr; }
-          .editorial { grid-template-columns: 1fr; }
-          footer { grid-template-columns: 1fr 1fr; padding: 3rem 2rem; }
-          section { padding: 4rem 2rem; }
-        }
-      `}</style>
-
-      {/* NAV */}
-      <nav className={scrolled ? "scrolled" : ""}>
-        <a href="#" className="nav-logo">VELOUR<span>.</span></a>
-        <ul className="nav-links">
-          {navLinks.map((l) => (
-            <li key={l}><a href="#">{l}</a></li>
-          ))}
-        </ul>
-        <div className="nav-right">
-          <button className="cart-btn" onClick={() => {}}>
-            Bag
-            {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+    <div
+      className="group bg-[#FAF8F5] hover:-translate-y-1 transition-transform duration-300 cursor-pointer"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => router.push(`/shop/${product.slug}`)}
+    >
+      {/* Image Container */}
+      <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F2ED]">
+        {image ? (
+          <img
+            src={image}
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full bg-[#E8E0D4] flex items-center justify-center text-[#C4B5A5] text-[0.65rem] tracking-widest uppercase">
+            No Image
+          </div>
+        )}
+ 
+        {/* Badges */}
+        <div className="absolute top-3 left-3 flex flex-col gap-2">
+          {!product.inStock && (
+            <span className="bg-[#8C7B6B] text-[#FAF8F5] text-[0.6rem] tracking-[0.15em] uppercase px-2.5 py-1">
+              Sold Out
+            </span>
+          )}
+          {badge && (
+            <span className={`text-[0.6rem] tracking-[0.15em] uppercase px-2.5 py-1 font-medium ${
+              badge === "New" || badge === "New Arrival"
+                ? "bg-[#B8965A] text-[#2C1F14]"
+                : badge === "Limited"
+                  ? "bg-transparent border border-[#2C1F14] text-[#2C1F14]"
+                  : "bg-[#2C1F14] text-[#FAF8F5]"
+            }`}>
+              {badge}
+            </span>
+          )}
+        </div>
+ 
+        {/* Hover Overlay */}
+        <div className={`absolute inset-0 bg-gradient-to-t from-[#2C1F14]/90 via-[#2C1F14]/40 to-transparent transition-opacity duration-300 flex flex-col justify-end p-4 ${
+          hovered ? "opacity-100" : "opacity-0"
+        }`}>
+          <span className="text-[#B8965A] text-[0.65rem] tracking-[0.12em] uppercase font-medium mb-3">
+            View Details →
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // ← stops the parent div click (navigation)
+              onAddToCart(product);
+            }}
+            disabled={!product.inStock}
+            className="w-full bg-[#B8965A] hover:bg-[#D4AF6E] text-[#2C1F14] py-2.5 text-[0.65rem] tracking-[0.15em] uppercase font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {product.inStock ? "Add to Bag" : "Out of Stock"}
           </button>
         </div>
-      </nav>
-
-      {/* HERO */}
-      <section className="hero" style={{ padding: 0 }}>
-        <div className="hero-left">
-          <div className="hero-eyebrow">Premium Hair Collection</div>
-          <h1 className="hero-title">
-            Wear Your<br />
-            <em>Confidence</em><br />
-            Differently.
-          </h1>
-          <p className="hero-desc">
-            Handcrafted luxury wigs from 100% virgin human hair.
-            Each piece is meticulously styled for a flawless, natural finish.
-          </p>
-          <div className="hero-cta-group">
-            <a href="#collection" className="btn-primary">Shop Collection</a>
-            <a href="#" className="btn-ghost">Our Story</a>
-          </div>
-          <div className="hero-stats">
-            <div className="stat-item">
-              <div className="stat-number">100%</div>
-              <div className="stat-label">Virgin Hair</div>
-            </div>
-            <div className="stat-item">
-              <div className="stat-number">2K+</div>
-              <div className="stat-label">Happy Clients</div>
-            </div>
-            <div className="stat-item">
-              <div className="stat-number">48h</div>
-              <div className="stat-label">Delivery</div>
-            </div>
-          </div>
-        </div>
-        <div className="hero-right">
-          <img
-            src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1200&q=85"
-            alt="Luxury wig editorial"
-            className="hero-img"
-          />
-          <div className="hero-img-overlay" />
-          <div className="hero-badge">
-            <div className="hero-badge-title">New Season Arrivals</div>
-            <div className="hero-badge-sub">Spring / Summer 2025</div>
-          </div>
-        </div>
-      </section>
-
-      {/* MARQUEE */}
-      <div className="marquee-section">
-        <div className="marquee-track">
-          {[...Array(2)].map((_, i) =>
-            ["100% Virgin Human Hair", "Free Shipping Over R1500", "HD Lace Technology", "Custom Colour Orders", "Afterpay Available", "Luxury Packaging"].map((t, j) => (
-              <div className="marquee-item" key={`${i}-${j}`}>
-                <span className="marquee-dot" />
-                {t}
-              </div>
-            ))
+      </div>
+ 
+      {/* Product Info */}
+      <div className="p-4 border-t border-[#E8E0D4]">
+        <p className="text-[#C4B5A5] text-[0.65rem] tracking-wider uppercase mb-1">
+          {product.category.name}
+          {product.variants[0]?.length && ` · ${product.variants[0].length}"`}
+        </p>
+        <h3
+          className="font-serif text-[#2C1F14] text-lg font-light leading-tight mb-2 group-hover:text-[#B8965A] transition-colors"
+          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+        >
+          {product.name}
+        </h3>
+        <div className="flex items-center justify-between">
+          <span className="font-serif text-[#B8965A] text-xl" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+            {product.minPrice !== product.maxPrice
+              ? `${formatPrice(product.minPrice)} – ${formatPrice(product.maxPrice)}`
+              : formatPrice(product.minPrice)
+            }
+          </span>
+          {product.avgRating && (
+            <span className="text-[#B8965A] text-xs flex items-center gap-0.5">
+              {"★".repeat(Math.floor(product.avgRating))}
+              <span className="text-[#C4B5A5] ml-1 tracking-wider">({product.reviewCount})</span>
+            </span>
           )}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* COLLECTION */}
-      <section id="collection">
-        <div className="collection-header">
-          <div>
-            <div className="section-label">Curated for You</div>
-            <h2 className="section-title">Featured Collection</h2>
+// ─── FILTER SECTION ───────────────────────────────────────────
+
+function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="border-b border-[#E8E0D4] pb-5 mb-5">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex justify-between items-center w-full mb-3"
+      >
+        <span className="text-[#2C1F14] text-[0.68rem] tracking-[0.18em] uppercase font-medium">{title}</span>
+        <span className="text-[#B8965A] text-lg leading-none">{open ? "−" : "+"}</span>
+      </button>
+      {open && <div className="animate-fadeIn">{children}</div>}
+    </div>
+  );
+}
+
+// ─── PAGE ─────────────────────────────────────────────────────
+
+export default function ShopPage() {
+  const { token }   = useAuthStore();
+  const { addItem } = useCartStore();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [products, setProducts]     = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [total, setTotal]           = useState(0);
+  const [page, setPage]             = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Filters
+  const [search, setSearch]         = useState(searchParams.get("search") || "");
+  const [sortBy, setSortBy]         = useState(searchParams.get("sort") || "newest");
+  const [activeCategory, setActiveCategory] = useState(searchParams.get("category") || "");
+  const [activeLace, setActiveLace]         = useState<string[]>([]);
+  const [activeColors, setActiveColors]     = useState<string[]>([]);
+  const [activeLengths, setActiveLengths]   = useState<string[]>([]);
+
+  // Toast
+  const [toast, setToast]           = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+
+  // Mobile sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Sync URL params with filters
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (sortBy !== "newest") params.set("sort", sortBy);
+    if (activeCategory) params.set("category", activeCategory);
+    if (page > 1) params.set("page", String(page));
+    
+    const newUrl = params.toString() ? `?${params.toString()}` : "/shop";
+    router.replace(newUrl, { scroll: false });
+  }, [search, sortBy, activeCategory, page, router]);
+
+  // Load categories once
+  useEffect(() => {
+    productsApi.getCategories().then(({ data }) => {
+      if (data) setCategories(Array.isArray(data) ? data : []);
+    });
+  }, []);
+
+  // Load products when filters change
+  useEffect(() => {
+    loadProducts();
+  }, [page, sortBy, activeCategory, activeLace, activeColors, activeLengths]);
+
+  async function loadProducts() {
+    setLoading(true);
+    const params: Record<string, string> = {
+      page:  String(page),
+      limit: "12",
+      sortBy,
+    };
+    if (search)         params.search   = search;
+    if (activeCategory) params.category = activeCategory;
+    if (activeLace[0])  params.laceType = activeLace[0];
+    if (activeColors[0])params.color    = activeColors[0];
+    if (activeLengths[0])params.length  = activeLengths[0];
+
+    const { data } = await productsApi.list(params);
+    if (data) {
+      setProducts(data.items);
+      setTotal(data.meta.total);
+      setTotalPages(data.meta.totalPages);
+    }
+    setLoading(false);
+  }
+
+  function toggleFilter(group: "lace" | "color" | "length", value: string) {
+    const setters = { lace: setActiveLace, color: setActiveColors, length: setActiveLengths };
+    const getters = { lace: activeLace, color: activeColors, length: activeLengths };
+    const current = getters[group];
+    setters[group](current.includes(value) ? current.filter(v => v !== value) : [...current, value]);
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setActiveCategory(""); 
+    setActiveLace([]); 
+    setActiveColors([]); 
+    setActiveLengths([]); 
+    setSearch(""); 
+    setPage(1);
+    router.replace("/shop");
+  }
+
+  async function handleAddToCart(product: Product) {
+    const firstVariant = product.variants.find(v => v.stock > 0);
+    if (!firstVariant) return;
+    if (!token) { window.location.href = "/login"; return; }
+    const error = await addItem(firstVariant.id, 1, token);
+    const msg = error ? error : `${product.name} added to bag`;
+    setToast(msg);
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 2800);
+  }
+
+  const activeCount = activeLace.length + activeColors.length + activeLengths.length + (activeCategory ? 1 : 0);
+
+  return (
+    <div className="bg-[#FAF8F5] min-h-screen" style={{ fontFamily: "'Jost', sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500&display=swap');`}</style>
+
+      {/* ── PAGE HEADER ────────────────────────────────────── */}
+      <div className="pt-28 pb-10 px-6 md:px-12 border-b border-[#E8E0D4]">
+        <div className="max-w-screen-xl mx-auto">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-[#C4B5A5] text-xs tracking-widest uppercase mb-4">
+            <Link href="/" className="hover:text-[#B8965A] transition-colors">Home</Link>
+            <span>›</span>
+            <span className="text-[#8C7B6B]">Shop</span>
           </div>
-          <a href="#" className="btn-ghost">View All</a>
+
+          <div className="flex justify-between items-end flex-wrap gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-px bg-[#B8965A]" />
+                <span className="text-[#B8965A] text-[0.65rem] tracking-[0.3em] uppercase">Curated Collection</span>
+              </div>
+              <h1 style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                className="text-5xl md:text-6xl font-light text-[#2C1F14] leading-none">
+                All Wigs
+              </h1>
+            </div>
+            <p className="text-[#8C7B6B] text-sm">{total} styles</p>
+          </div>
         </div>
-        <div className="product-grid">
-          {products.map((p) => (
-            <div
-              key={p.id}
-              className="product-card"
-              onMouseEnter={() => setHoveredProduct(p.id)}
-              onMouseLeave={() => setHoveredProduct(null)}
-            >
-              <div className="product-img-wrap">
-                <img src={p.img} alt={p.name} className="product-img" />
-                {p.tag && (
-                  <span className={`product-tag ${p.tag.toLowerCase()}`}>{p.tag}</span>
-                )}
-                <button
-                  className="product-add-btn"
-                  onClick={() => addToCart(p.name)}
+      </div>
+
+      {/* ── CATEGORY TABS ──────────────────────────────────── */}
+      {categories.length > 0 && (
+        <div className="border-b border-[#E8E0D4] bg-[#FAF8F5] sticky top-[72px] z-30">
+          <div className="max-w-screen-xl mx-auto px-6 md:px-12">
+            <div className="flex gap-0 overflow-x-auto scrollbar-hide">
+              <button
+                onClick={() => { setActiveCategory(""); setPage(1); }}
+                className={`px-5 py-4 text-[0.68rem] tracking-[0.18em] uppercase border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${
+                  !activeCategory
+                    ? "border-[#2C1F14] text-[#2C1F14]" 
+                    : "border-transparent text-[#8C7B6B] hover:text-[#2C1F14]"
+                }`}
+              >
+                All
+              </button>
+              {categories.map((cat) => (
+                <button key={cat.id}
+                  onClick={() => { setActiveCategory(cat.slug); setPage(1); }}
+                  className={`px-5 py-4 text-[0.68rem] tracking-[0.18em] uppercase border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${
+                    activeCategory === cat.slug
+                      ? "border-[#2C1F14] text-[#2C1F14]"
+                      : "border-transparent text-[#8C7B6B] hover:text-[#2C1F14]"
+                  }`}
                 >
-                  Add to Bag
+                  {cat.name}
+                  {cat._count?.products ? <span className="ml-1.5 text-[#C4B5A5]">({cat._count.products})</span> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-screen-xl mx-auto px-6 md:px-12 py-10">
+
+        {/* ── TOOLBAR ──────────────────────────────────────── */}
+        <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
+          {/* Search */}
+          <div className="relative flex-1 max-w-xs">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[#C4B5A5]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Search wigs…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && loadProducts()}
+              className="w-full pl-9 pr-4 py-2.5 border border-[#E8E0D4] bg-white text-[#2C1F14] text-sm outline-none focus:border-[#B8965A] transition-colors placeholder:text-[#C4B5A5]"
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            {activeCount > 0 && (
+              <button onClick={clearFilters}
+                className="text-[#B8965A] text-xs tracking-widest uppercase hover:text-[#2C1F14] transition-colors">
+                Clear ({activeCount}) ×
+              </button>
+            )}
+            <select value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(1); }}
+              className="border border-[#E8E0D4] bg-white text-[#2C1F14] text-xs tracking-widest uppercase px-4 py-2.5 outline-none focus:border-[#B8965A] transition-colors cursor-pointer">
+              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            {/* Mobile filter btn */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden border border-[#E8E0D4] bg-white text-[#2C1F14] text-xs tracking-widest uppercase px-4 py-2.5 flex items-center gap-2"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+              </svg>
+              Filters {activeCount > 0 && `(${activeCount})`}
+            </button>
+          </div>
+        </div>
+
+        {/* ── LAYOUT: SIDEBAR + GRID ────────────────────────── */}
+        <div className="flex gap-10">
+
+          {/* Desktop Sidebar */}
+          <aside className="hidden md:block w-52 flex-shrink-0">
+
+            <FilterGroup title="Lace Type">
+              <div className="space-y-2.5">
+                {LACE_TYPES.map(type => (
+                  <label key={type} className="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox"
+                      checked={activeLace.includes(type)}
+                      onChange={() => toggleFilter("lace", type)}
+                      className="accent-[#2C1F14] w-3.5 h-3.5"
+                    />
+                    <span className={`text-sm transition-colors ${activeLace.includes(type) ? "text-[#2C1F14] font-medium" : "text-[#8C7B6B] group-hover:text-[#2C1F14]"}`}>
+                      {type}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </FilterGroup>
+
+            <FilterGroup title="Color">
+              <div className="space-y-2.5">
+                {COLORS.map(color => (
+                  <label key={color} className="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox"
+                      checked={activeColors.includes(color)}
+                      onChange={() => toggleFilter("color", color)}
+                      className="accent-[#2C1F14] w-3.5 h-3.5"
+                    />
+                    <span className={`text-sm transition-colors ${activeColors.includes(color) ? "text-[#2C1F14] font-medium" : "text-[#8C7B6B] group-hover:text-[#2C1F14]"}`}>
+                      {color}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </FilterGroup>
+
+            <FilterGroup title="Length">
+              <div className="flex flex-wrap gap-2">
+                {LENGTHS.map(len => (
+                  <button key={len}
+                    onClick={() => toggleFilter("length", len)}
+                    className={`w-12 py-1.5 text-xs border transition-all ${
+                      activeLengths.includes(len)
+                        ? "border-[#2C1F14] bg-[#2C1F14] text-[#FAF8F5]"
+                        : "border-[#E8E0D4] text-[#8C7B6B] hover:border-[#2C1F14] hover:text-[#2C1F14]"
+                    }`}
+                  >
+                    {len}"
+                  </button>
+                ))}
+              </div>
+            </FilterGroup>
+
+          </aside>
+
+          {/* Product Grid Container */}
+          <div className="flex-1">
+            {loading ? (
+              // ── LOADING SKELETON ───────────────────────────
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="bg-[#FAF8F5]">
+                    <div className="aspect-[3/4] bg-[#E8E0D4] animate-pulse rounded-sm" />
+                    <div className="p-4">
+                      <div className="h-3 bg-[#E8E0D4] animate-pulse w-1/2 mb-2" />
+                      <div className="h-4 bg-[#E8E0D4] animate-pulse w-3/4 mb-2" />
+                      <div className="h-5 bg-[#E8E0D4] animate-pulse w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : products.length === 0 ? (
+              // ── EMPTY STATE ───────────────────────────────
+              <div className="text-center py-24">
+                <p style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                  className="text-3xl text-[#C4B5A5] font-light mb-4">No products found</p>
+                <p className="text-[#8C7B6B] text-sm mb-6">Try adjusting your filters or search terms</p>
+                <button onClick={clearFilters}
+                  className="inline-flex items-center gap-2 bg-[#B8965A] hover:bg-[#D4AF6E] text-[#2C1F14] px-6 py-3 text-[0.7rem] tracking-[0.15em] uppercase font-medium transition-colors">
+                  Clear All Filters
                 </button>
               </div>
-              <div className="product-info">
-                <div className="product-name">{p.name}</div>
-                <div className="product-meta">
-                  <span className="product-color">{p.color} · {p.length}</span>
-                  <span className="product-price">R{p.price.toLocaleString()}</span>
+            ) : (
+              // ── PRODUCT GRID ──────────────────────────────
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                  {products.map(product => (
+                    <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+                  ))}
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
-      {/* FEATURES */}
-      <div className="features-section">
-        {[
-          { icon: "✦", title: "Virgin Human Hair", desc: "Every wig is crafted from 100% unprocessed virgin hair — soft, lustrous, and built to last." },
-          { icon: "◈", title: "HD Lace Frontal", desc: "Our HD lace melts seamlessly into all skin tones for an undetectable, natural hairline." },
-          { icon: "◎", title: "Custom Orders", desc: "Request your ideal length, colour, density, or curl pattern. Made just for you." },
-        ].map((f) => (
-          <div key={f.title} className="feature-item">
-            <div className="feature-icon">{f.icon}</div>
-            <div className="feature-title">{f.title}</div>
-            <p className="feature-desc">{f.desc}</p>
+                {/* ── PAGINATION ───────────────────────────── */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-14 pt-10 border-t border-[#E8E0D4]">
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="px-4 py-2 border border-[#E8E0D4] text-[#8C7B6B] text-[0.65rem] tracking-[0.15em] uppercase hover:border-[#2C1F14] hover:text-[#2C1F14] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      ← Prev
+                    </button>
+                    
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                        .map((p, idx, arr) => {
+                          // Add ellipsis for skipped pages
+                          const prev = arr[idx - 1];
+                          return (
+                            <div key={p} className="flex items-center">
+                              {prev && p - prev > 1 && (
+                                <span className="px-2 text-[#C4B5A5]">…</span>
+                              )}
+                              <button 
+                                onClick={() => setPage(p)}
+                                className={`w-10 h-10 text-[0.7rem] border transition-all ${
+                                  p === page
+                                    ? "border-[#2C1F14] bg-[#2C1F14] text-[#FAF8F5]"
+                                    : "border-[#E8E0D4] text-[#8C7B6B] hover:border-[#2C1F14] hover:text-[#2C1F14]"
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                    
+                    <button
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="px-4 py-2 border border-[#E8E0D4] text-[#8C7B6B] text-[0.65rem] tracking-[0.15em] uppercase hover:border-[#2C1F14] hover:text-[#2C1F14] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+                
+                {/* Results Count */}
+                <p className="text-center text-[#8C7B6B] text-sm mt-6">
+                  Showing {(page - 1) * 12 + 1}–{Math.min(page * 12, total)} of {total} products
+                </p>
+              </>
+            )}
           </div>
-        ))}
-      </div>
-
-      {/* EDITORIAL */}
-      <div className="editorial">
-        <div className="editorial-img-wrap">
-          <img
-            src="https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=900&q=85"
-            alt="Editorial"
-            className="editorial-img"
-          />
-        </div>
-        <div className="editorial-content">
-          <div className="section-label">Our Philosophy</div>
-          <blockquote className="editorial-quote">
-            "Hair is the crown you never take off."
-          </blockquote>
-          <p className="editorial-sub">
-            At Velour, we believe every woman deserves hair that makes her feel
-            unstoppable. From our sourcing process to the final finishing touches,
-            quality is never compromised. Each wig leaves our studio having passed
-            through the hands of expert stylists who care deeply about the craft.
-          </p>
-          <a href="#" className="btn-primary">Discover Our Story</a>
         </div>
       </div>
 
-      {/* FOOTER */}
-      <footer>
-        <div className="footer-brand">
-          <div className="footer-logo">VELOUR<span>.</span></div>
-          <p className="footer-tagline">
-            Luxury human hair wigs, handcrafted for women who refuse to blend in.
-          </p>
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/40" onClick={() => setSidebarOpen(false)} />
+          <div className="w-72 bg-[#FAF8F5] h-full overflow-y-auto p-6 shadow-xl">
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-[#2C1F14] text-[0.65rem] tracking-[0.2em] uppercase font-medium">Filters</span>
+              <button onClick={() => setSidebarOpen(false)} className="text-[#8C7B6B] text-2xl leading-none">×</button>
+            </div>
+            
+            <FilterGroup title="Lace Type">
+              <div className="space-y-2.5">
+                {LACE_TYPES.map(type => (
+                  <label key={type} className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={activeLace.includes(type)} onChange={() => toggleFilter("lace", type)} className="accent-[#2C1F14] w-4 h-4" />
+                    <span className="text-sm text-[#8C7B6B]">{type}</span>
+                  </label>
+                ))}
+              </div>
+            </FilterGroup>
+            
+            <FilterGroup title="Color">
+              <div className="space-y-2.5">
+                {COLORS.map(color => (
+                  <label key={color} className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={activeColors.includes(color)} onChange={() => toggleFilter("color", color)} className="accent-[#2C1F14] w-4 h-4" />
+                    <span className="text-sm text-[#8C7B6B]">{color}</span>
+                  </label>
+                ))}
+              </div>
+            </FilterGroup>
+            
+            <FilterGroup title="Length">
+              <div className="flex flex-wrap gap-2">
+                {LENGTHS.map(len => (
+                  <button key={len} onClick={() => toggleFilter("length", len)}
+                    className={`w-12 py-1.5 text-xs border transition-all ${activeLengths.includes(len) ? "border-[#2C1F14] bg-[#2C1F14] text-[#FAF8F5]" : "border-[#E8E0D4] text-[#8C7B6B] hover:border-[#2C1F14]"}`}>
+                    {len}"
+                  </button>
+                ))}
+              </div>
+            </FilterGroup>
+            
+            <button onClick={() => { clearFilters(); setSidebarOpen(false); }}
+              className="w-full mt-6 border border-[#E8E0D4] text-[#8C7B6B] py-3 text-[0.65rem] tracking-[0.15em] uppercase hover:border-[#B8965A] hover:text-[#B8965A] transition-colors">
+              Clear All
+            </button>
+          </div>
         </div>
-        <div>
-          <div className="footer-col-title">Shop</div>
-          <ul className="footer-links">
-            {["New Arrivals", "Lace Frontals", "Full Lace Wigs", "Closure Wigs", "Custom Orders"].map(l => (
-              <li key={l}><a href="#">{l}</a></li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <div className="footer-col-title">Help</div>
-          <ul className="footer-links">
-            {["Sizing Guide", "Care Instructions", "Shipping Policy", "Returns", "Contact Us"].map(l => (
-              <li key={l}><a href="#">{l}</a></li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <div className="footer-col-title">Account</div>
-          <ul className="footer-links">
-            {["Sign In", "Create Account", "My Orders", "Wishlist", "Loyalty Rewards"].map(l => (
-              <li key={l}><a href="#">{l}</a></li>
-            ))}
-          </ul>
-        </div>
-      </footer>
-      
-      <div className="footer-bottom">
-        <div className="footer-copy">© 2025 <span>Velour</span>. All rights reserved.</div>
-        <div className="footer-copy">Secure payments via <span>PayFast</span></div>
+      )}
+
+      {/* Toast Notification */}
+      <div className={`fixed bottom-8 right-8 bg-[#2C1F14] text-[#FAF8F5] px-6 py-3.5 text-sm flex items-center gap-3 z-50 shadow-lg transition-all duration-300 ${
+        toastVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8 pointer-events-none"
+      }`}>
+        <span className="text-[#B8965A] text-lg">✓</span>
+        {toast}
       </div>
 
-      {/* TOAST */}
-      <div className={`toast ${toastVisible ? "visible" : ""}`}>
-        <span className="toast-check">✓</span>
-        {toastMsg}
-      </div>
-    </>
+      {/* Custom Animations */}
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+    </div>
   );
 }

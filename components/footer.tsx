@@ -24,22 +24,35 @@ const LINKS = {
 };
 
 export default function Footer() {
+  // Light theme color palette (consistent with Navbar)
+  const colors = {
+    bg: "bg-white",
+    text: "text-[#1A1A1A]",
+    textMuted: "text-[#666666]",
+    textLight: "text-[#888888]",
+    accent: "text-[#C9A84C]",
+    accentHover: "hover:text-[#B8963C]",
+    border: "border-[#E5E5E5]",
+    borderAccent: "border-[#C9A84C]/20",
+    divider: "from-transparent via-[#C9A84C]/30 to-transparent",
+  };
+
   return (
-    <footer className="bg-[#0D0D0D] border-t border-white/[0.06] pt-16 pb-8">
+    <footer className={`${colors.bg} border-t ${colors.border} pt-16 pb-8`}>
       <div className="max-w-screen-xl mx-auto px-6 md:px-12">
 
         {/* Gold divider top */}
-        <div className="h-px bg-gradient-to-r from-transparent via-[#C9A84C]/40 to-transparent mb-12" />
+        <div className={`h-px bg-gradient-to-r ${colors.divider} mb-12`} />
 
         {/* Main grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
 
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="font-serif text-2xl tracking-[0.2em] text-[#F5F0E8] hover:text-[#C9A84C] transition-colors">
-              Novaa<span className="text-[#C9A84C]">elevated beauty, with purpose.</span>
+            <Link href="/" className="font-serif text-2xl tracking-[0.2em] text-[#1A1A1A] hover:text-[#C9A84C] transition-colors block">
+              Nova<span className={colors.accent}>a</span>
             </Link>
-            <p className="text-[#6B6B6B] text-sm leading-relaxed mt-4 max-w-[220px]">
+            <p className={`${colors.textMuted} text-sm leading-relaxed mt-4 max-w-[220px]`}>
               Premium human hair wigs crafted for the woman who commands every room she enters.
             </p>
 
@@ -50,7 +63,7 @@ export default function Footer() {
                 { label: "FB", href: "https://facebook.com/Novaa" },
               ].map(({ label, href }) => (
                 <a key={label} href={href} target="_blank" rel="noreferrer"
-                  className="w-9 h-9 border border-white/[0.06] hover:border-[#C9A84C] flex items-center justify-center text-[#6B6B6B] hover:text-[#C9A84C] text-xs tracking-wider transition-colors duration-200">
+                  className={`w-9 h-9 border ${colors.border} hover:border-[#C9A84C] flex items-center justify-center ${colors.textMuted} hover:text-[#C9A84C] text-xs tracking-wider transition-colors duration-200`}>
                   {label}
                 </a>
               ))}
@@ -60,12 +73,12 @@ export default function Footer() {
           {/* Link columns */}
           {Object.entries(LINKS).map(([title, links]) => (
             <div key={title}>
-              <p className="text-[#C9A84C] text-xs tracking-[0.18em] uppercase font-medium mb-5">{title}</p>
+              <p className={`${colors.accent} text-xs tracking-[0.18em] uppercase font-medium mb-5`}>{title}</p>
               <ul className="space-y-3">
                 {links.map(([label, href]) => (
                   <li key={label}>
                     <Link href={href}
-                      className="text-[#6B6B6B] hover:text-[#F5F0E8] text-sm transition-colors duration-200">
+                      className={`${colors.textMuted} hover:text-[#1A1A1A] text-sm transition-colors duration-200`}>
                       {label}
                     </Link>
                   </li>
@@ -76,10 +89,18 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-[#6B6B6B] text-xs">
-            © {new Date().getFullYear()} Novaa
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-6 border-t border-[#E5E5E5]">
+          <p className={`${colors.textLight} text-xs`}>
+            © {new Date().getFullYear()} Novaa. All rights reserved.
           </p>
+          <div className="flex gap-6">
+            <Link href="/privacy" className={`${colors.textLight} hover:text-[#1A1A1A] text-xs transition-colors`}>
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className={`${colors.textLight} hover:text-[#1A1A1A] text-xs transition-colors`}>
+              Terms of Service
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

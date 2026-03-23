@@ -1,45 +1,12 @@
 "use client";
-
 // app/shop/[slug]/page.tsx
-// Product detail page
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-
-// ─── MOCK PRODUCT (replace with real API call) ────────────────
-
-const MOCK_PRODUCT = {
-  id:          "1",
-  slug:        "deep-wave-hd-lace-22",
-  name:        "Deep Wave HD Lace Wig",
-  description: `Experience the pinnacle of luxury with our Deep Wave HD Lace Wig. 
-    Crafted from 100% virgin human hair, this wig features an ultra-thin HD lace 
-    that melts seamlessly into any skin tone — truly undetectable.
-    
-    The deep wave pattern adds volume and texture that flows naturally with every 
-    movement. Pre-plucked hairline with baby hairs for a flawless natural look.`,
-  brand:    "AuraWig",
-  category: { name: "HD Lace", slug: "hd-lace" },
-  images: [
-    "https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=800&q=80",
-    "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80",
-    "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80",
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&q=80",
-  ],
-  variants: [
-    { id: "v1", sku: "DW-HD-NB-18", price: 229900, stock: 8,  color: "Natural Black", length: "18", density: "150%", laceType: "HD Lace", capSize: "Medium" },
-    { id: "v2", sku: "DW-HD-NB-20", price: 249900, stock: 5,  color: "Natural Black", length: "20", density: "150%", laceType: "HD Lace", capSize: "Medium" },
-    { id: "v3", sku: "DW-HD-NB-22", price: 279900, stock: 3,  color: "Natural Black", length: "22", density: "180%", laceType: "HD Lace", capSize: "Medium" },
-    { id: "v4", sku: "DW-HD-NB-24", price: 319900, stock: 0,  color: "Natural Black", length: "24", density: "180%", laceType: "HD Lace", capSize: "Medium" },
-    { id: "v5", sku: "DW-HD-DB-20", price: 249900, stock: 7,  color: "Dark Brown",    length: "20", density: "150%", laceType: "HD Lace", capSize: "Medium" },
-    { id: "v6", sku: "DW-HD-DB-22", price: 279900, stock: 4,  color: "Dark Brown",    length: "22", density: "180%", laceType: "HD Lace", capSize: "Medium" },
-  ],
-  reviews: [
-    { id: "r1", user: { name: "Naledi M." }, rating: 5, comment: "Absolutely stunning wig! The HD lace is truly undetectable — I've gotten so many compliments.", verified: true, createdAt: "2024-11-15" },
-    { id: "r2", user: { name: "Thandi K." }, rating: 5, comment: "Best wig I've ever bought. The hair quality is exceptional and the waves hold so well.", verified: true, createdAt: "2024-11-02" },
-    { id: "r3", user: { name: "Amara O." }, rating: 4, comment: "Beautiful hair, ships fast. The lace needs a bit of trimming but the quality is amazing.", verified: false, createdAt: "2024-10-28" },
-  ],
-};
+import { useParams, useRouter } from "next/navigation";
+import { productsApi, Product } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
 
 // ─── HELPERS ─────────────────────────────────────────────────
 
@@ -49,7 +16,7 @@ function formatPrice(cents: number) {
 
 function Stars({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg" }) {
   return (
-    <span style={{ color: "var(--gold)", fontSize: size === "lg" ? "1rem" : "0.75rem" }}>
+    <span className={size === "lg" ? "text-[#B8965A] text-base" : "text-[#B8965A] text-xs"}>
       {"★".repeat(Math.floor(rating))}{"☆".repeat(5 - Math.floor(rating))}
     </span>
   );
@@ -57,297 +24,289 @@ function Stars({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg" }) 
 
 // ─── PAGE ─────────────────────────────────────────────────────
 
-export default function ProductPage({ params }: { params: { slug: string } }) {
-  const product = MOCK_PRODUCT;
+export default function ProductPage() {
+  const params              = useParams();
+  const router              = useRouter();
+  const slug                = params.slug as string;
+  const { getValidToken }   = useAuthStore();
+  const { addItem }         = useCartStore();
 
-  // Derive unique option values
-  const colors  = [...new Set(product.variants.map(v => v.color))];
-  const lengths = [...new Set(product.variants.map(v => v.length))].sort((a, b) => Number(a) - Number(b));
+  const [product, setProduct]       = useState<Product | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [notFound, setNotFound]     = useState(false);
 
-  const [selectedColor,  setSelectedColor]  = useState(colors[0]);
-  const [selectedLength, setSelectedLength] = useState(lengths[0]);
-  const [quantity,       setQuantity]       = useState(1);
-  const [activeImage,    setActiveImage]    = useState(0);
-  const [addedToCart,    setAddedToCart]    = useState(false);
-  const [activeTab,      setActiveTab]      = useState<"description" | "details" | "reviews">("description");
+  const [selectedColor, setSelectedColor]   = useState("");
+  const [selectedLength, setSelectedLength] = useState("");
+  const [quantity, setQuantity]             = useState(1);
+  const [activeImage, setActiveImage]       = useState(0);
+  const [activeTab, setActiveTab]           = useState<"description" | "details" | "reviews">("description");
 
-  // Find the matching variant
+  // Add to cart state
+  const [cartState, setCartState]   = useState<"idle" | "loading" | "added" | "error">("idle");
+  const [cartError, setCartError]   = useState("");
+
+  // ── Fetch product ──────────────────────────────────────────
+  useEffect(() => {
+    if (!slug) return;
+    setLoading(true);
+    productsApi.get(slug).then(({ data, error }) => {
+      if (error || !data) { setNotFound(true); setLoading(false); return; }
+      setProduct(data);
+      // Set defaults from first available variant
+      const firstVariant = data.variants.find(v => v.stock > 0) ?? data.variants[0];
+      if (firstVariant) {
+        setSelectedColor(firstVariant.color ?? "");
+        setSelectedLength(firstVariant.length ?? "");
+      }
+      setLoading(false);
+    });
+  }, [slug]);
+
+  if (loading) return (
+    <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center pt-20">
+      <div className="w-6 h-6 border-2 border-[#B8965A] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (notFound || !product) return (
+    <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center pt-20 text-center px-4">
+      <div>
+        <p className="font-serif text-3xl text-[#C4B5A5] font-light mb-4">Product not found</p>
+        <Link href="/shop" className="bg-[#B8965A] text-[#2C1F14] px-6 py-3 text-xs tracking-widest uppercase">
+          Back to Shop
+        </Link>
+      </div>
+    </div>
+  );
+
+  // ── Derived state ──────────────────────────────────────────
+
+  const colors  = [...new Set(product.variants.map(v => v.color).filter(Boolean))] as string[];
+  const lengths = [...new Set(product.variants.map(v => v.length).filter(Boolean))]
+    .sort((a, b) => Number(a) - Number(b)) as string[];
+
   const selectedVariant = product.variants.find(
     v => v.color === selectedColor && v.length === selectedLength
-  ) ?? product.variants[0];
+  ) ?? product.variants.find(v => v.stock > 0) ?? product.variants[0];
 
-  const inStock     = selectedVariant.stock > 0;
-  const lowStock    = selectedVariant.stock > 0 && selectedVariant.stock <= 5;
-  const avgRating   = product.reviews.reduce((s, r) => s + r.rating, 0) / product.reviews.length;
+  const inStock  = (selectedVariant?.stock ?? 0) > 0;
+  const lowStock = inStock && (selectedVariant?.stock ?? 0) <= 5;
 
-  function handleAddToCart() {
-    // TODO: call POST /api/cart
-    setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2500);
+  const avgRating = product.reviews?.length
+    ? product.reviews.reduce((s: number, r: any) => s + r.rating, 0) / product.reviews.length
+    : null;
+
+  // ── Add to cart ────────────────────────────────────────────
+
+  async function handleAddToCart() {
+    if (!selectedVariant || !inStock) return;
+    setCartState("loading");
+    setCartError("");
+
+    const token = await getValidToken();
+    if (!token) {
+      router.push(`/login?redirect=/shop/${slug}`);
+      return;
+    }
+
+    const error = await addItem(selectedVariant.id, quantity, token);
+    if (error) {
+      setCartState("error");
+      setCartError(error);
+      setTimeout(() => setCartState("idle"), 3000);
+    } else {
+      setCartState("added");
+      setTimeout(() => setCartState("idle"), 2500);
+    }
   }
 
   return (
-    <div style={{ paddingTop: "7rem" }}>
-      {/* Breadcrumb */}
-      <div className="container" style={{ paddingBottom: "2rem" }}>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", fontSize: "0.75rem", color: "var(--muted)" }}>
-          <Link href="/" style={{ transition: "color 0.2s" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--gold)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--muted)")}
-          >Home</Link>
-          <span>›</span>
-          <Link href="/shop" style={{ transition: "color 0.2s" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--gold)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--muted)")}
-          >Shop</Link>
-          <span>›</span>
-          <Link href={`/shop?category=${product.category.slug}`} style={{ transition: "color 0.2s" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--gold)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--muted)")}
-          >{product.category.name}</Link>
-          <span>›</span>
-          <span style={{ color: "var(--cream-dim)" }}>{product.name}</span>
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#FAF8F5] text-[#2C1F14] pt-28">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
-      {/* Main layout */}
-      <div className="container">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", marginBottom: "6rem" }}>
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-xs tracking-widest uppercase text-[#C4B5A5] pb-8">
+          <Link href="/" className="hover:text-[#B8965A] transition-colors">Home</Link>
+          <span>›</span>
+          <Link href="/shop" className="hover:text-[#B8965A] transition-colors">Shop</Link>
+          <span>›</span>
+          <Link href={`/shop?category=${product.category.slug}`} className="hover:text-[#B8965A] transition-colors">
+            {product.category.name}
+          </Link>
+          <span>›</span>
+          <span className="text-[#8C7B6B] truncate max-w-[200px]">{product.name}</span>
+        </nav>
 
-          {/* ── Left: Image Gallery ───────────────────────── */}
-          <div>
-            {/* Main image */}
-            <div style={{
-              aspectRatio: "4/5",
-              overflow:   "hidden",
-              background: "var(--obsidian-mid)",
-              marginBottom: "1rem",
-              position:   "relative",
-            }}>
-              <img
-                src={product.images[activeImage]}
-                alt={product.name}
-                style={{ width: "100%", height: "100%", objectFit: "cover", transition: "opacity 0.3s" }}
-              />
+        {/* Main layout */}
+        <div className="grid md:grid-cols-2 gap-8 lg:gap-12 mb-16">
 
-              {/* Arrows */}
+          {/* ── Gallery ──────────────────────────────────── */}
+          <div className="space-y-4">
+            <div className="relative aspect-[4/5] overflow-hidden bg-[#F5F2ED]">
+              {product.images[activeImage] ? (
+                <img
+                  src={product.images[activeImage].url}
+                  alt={product.name}
+                  className="w-full h-full object-cover transition-opacity duration-300"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-[#C4B5A5] text-xs tracking-widest uppercase">
+                  No Image
+                </div>
+              )}
               {product.images.length > 1 && (
                 <>
-                  <button onClick={() => setActiveImage((activeImage - 1 + product.images.length) % product.images.length)}
-                    style={{
-                      position:  "absolute",
-                      left:      "1rem",
-                      top:       "50%",
-                      transform: "translateY(-50%)",
-                      background: "rgba(10,10,10,0.7)",
-                      border:    "1px solid var(--border-subtle)",
-                      color:     "var(--cream)",
-                      width:     "40px",
-                      height:    "40px",
-                      display:   "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor:    "pointer",
-                      transition: "border-color 0.2s",
-                    }}
+                  <button
+                    onClick={() => setActiveImage((activeImage - 1 + product.images.length) % product.images.length)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-[#2C1F14]/70 border border-[#E8E0D4] text-[#FAF8F5] hover:border-[#B8965A] transition-colors"
                   >‹</button>
-                  <button onClick={() => setActiveImage((activeImage + 1) % product.images.length)}
-                    style={{
-                      position:  "absolute",
-                      right:     "1rem",
-                      top:       "50%",
-                      transform: "translateY(-50%)",
-                      background: "rgba(10,10,10,0.7)",
-                      border:    "1px solid var(--border-subtle)",
-                      color:     "var(--cream)",
-                      width:     "40px",
-                      height:    "40px",
-                      display:   "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor:    "pointer",
-                      transition: "border-color 0.2s",
-                    }}
+                  <button
+                    onClick={() => setActiveImage((activeImage + 1) % product.images.length)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-[#2C1F14]/70 border border-[#E8E0D4] text-[#FAF8F5] hover:border-[#B8965A] transition-colors"
                   >›</button>
                 </>
               )}
             </div>
 
             {/* Thumbnails */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem" }}>
-              {product.images.map((img, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveImage(i)}
-                  style={{
-                    aspectRatio: "1",
-                    overflow:    "hidden",
-                    border:      i === activeImage ? "2px solid var(--gold)" : "2px solid transparent",
-                    transition:  "border-color 0.2s",
-                    padding:     0,
-                    cursor:      "pointer",
-                  }}
-                >
-                  <img src={img} alt={`View ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Right: Product Info ───────────────────────── */}
-          <div>
-            {/* Category + rating */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <span style={{ fontSize: "0.7rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)" }}>
-                {product.category.name}
-              </span>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8rem", color: "var(--muted)" }}>
-                <Stars rating={avgRating} />
-                <span>{avgRating.toFixed(1)} ({product.reviews.length} reviews)</span>
-              </div>
-            </div>
-
-            {/* Name */}
-            <h1 style={{
-              fontFamily:   "var(--font-display)",
-              fontSize:     "clamp(1.8rem, 3vw, 2.75rem)",
-              fontWeight:   400,
-              color:        "var(--cream)",
-              lineHeight:   1.15,
-              marginBottom: "1.25rem",
-            }}>
-              {product.name}
-            </h1>
-
-            {/* Price */}
-            <div style={{
-              fontFamily:   "var(--font-display)",
-              fontSize:     "2rem",
-              color:        "var(--gold)",
-              marginBottom: "2rem",
-            }}>
-              {formatPrice(selectedVariant.price)}
-            </div>
-
-            <div className="divider-gold" />
-
-            {/* Color selector */}
-            <div style={{ marginBottom: "1.75rem" }}>
-              <p style={{ fontSize: "0.72rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "0.75rem" }}>
-                Color: <span style={{ color: "var(--cream)" }}>{selectedColor}</span>
-              </p>
-              <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
-                {colors.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => setSelectedColor(color)}
-                    className={`filter-chip ${selectedColor === color ? "active" : ""}`}
-                  >
-                    {color}
+            {product.images.length > 1 && (
+              <div className="grid grid-cols-4 gap-3">
+                {product.images.map((img, i) => (
+                  <button key={i} onClick={() => setActiveImage(i)}
+                    className={`aspect-square overflow-hidden transition-all ${
+                      i === activeImage ? "ring-2 ring-[#B8965A]" : "ring-2 ring-transparent hover:ring-[#E8E0D4]"
+                    }`}>
+                    <img src={img.url} alt={`View ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* ── Product Info ──────────────────────────────── */}
+          <div className="space-y-6">
+            {/* Category + rating */}
+            <div className="flex justify-between items-center">
+              <span className="text-[0.7rem] tracking-[0.15em] uppercase text-[#B8965A] font-medium">
+                {product.category.name}
+              </span>
+              {avgRating && (
+                <div className="flex items-center gap-2 text-sm text-[#8C7B6B]">
+                  <Stars rating={avgRating} />
+                  <span>{avgRating.toFixed(1)} ({product.reviewCount})</span>
+                </div>
+              )}
             </div>
 
-            {/* Length selector */}
-            <div style={{ marginBottom: "1.75rem" }}>
-              <p style={{ fontSize: "0.72rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "0.75rem" }}>
-                Length: <span style={{ color: "var(--cream)" }}>{selectedLength}"</span>
-              </p>
-              <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
-                {lengths.map((length) => {
-                  const variant = product.variants.find(v => v.color === selectedColor && v.length === length);
-                  const unavailable = !variant || variant.stock === 0;
-                  return (
-                    <button
-                      key={length}
-                      onClick={() => !unavailable && setSelectedLength(length)}
-                      className={`filter-chip ${selectedLength === length ? "active" : ""}`}
-                      style={{
-                        opacity:        unavailable ? 0.35 : 1,
-                        cursor:         unavailable ? "not-allowed" : "pointer",
-                        textDecoration: unavailable ? "line-through" : "none",
-                        minWidth:       "3.5rem",
-                        textAlign:      "center",
-                      }}
-                    >
-                      {length}"
+            <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl font-light text-[#2C1F14] leading-tight">
+              {product.name}
+            </h1>
+
+            <p className="font-serif text-3xl text-[#B8965A]">
+              {formatPrice(selectedVariant?.price ?? product.minPrice)}
+            </p>
+
+            <div className="h-px bg-gradient-to-r from-transparent via-[#B8965A]/30 to-transparent" />
+
+            {/* Color selector */}
+            {colors.length > 0 && (
+              <div>
+                <p className="text-[0.72rem] tracking-[0.12em] uppercase text-[#8C7B6B] mb-3">
+                  Color: <span className="text-[#2C1F14] font-medium">{selectedColor}</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {colors.map((color) => (
+                    <button key={color} onClick={() => { setSelectedColor(color); setQuantity(1); }}
+                      className={`px-4 py-2 text-xs tracking-wider uppercase border transition-all ${
+                        selectedColor === color
+                          ? "border-[#2C1F14] bg-[#2C1F14] text-[#FAF8F5]"
+                          : "border-[#E8E0D4] text-[#8C7B6B] hover:border-[#2C1F14] hover:text-[#2C1F14]"
+                      }`}>
+                      {color}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-
-            {/* Stock status */}
-            {inStock ? (
-              <p style={{ fontSize: "0.78rem", color: lowStock ? "#E8A84C" : "#6BCB77", marginBottom: "1.5rem" }}>
-                {lowStock ? `⚠ Only ${selectedVariant.stock} left in stock` : "✓ In Stock"}
-              </p>
-            ) : (
-              <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginBottom: "1.5rem" }}>
-                ✗ Out of Stock
-              </p>
             )}
 
-            {/* Quantity + Add to Cart */}
-            <div style={{ display: "flex", gap: "1rem", marginBottom: "1.25rem", alignItems: "stretch" }}>
-              {/* Qty stepper */}
-              <div style={{
-                display:     "flex",
-                border:      "1px solid var(--border-subtle)",
-                alignItems:  "center",
-              }}>
+            {/* Length selector */}
+            {lengths.length > 0 && (
+              <div>
+                <p className="text-[0.72rem] tracking-[0.12em] uppercase text-[#8C7B6B] mb-3">
+                  Length: <span className="text-[#2C1F14] font-medium">{selectedLength}"</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {lengths.map((length) => {
+                    const variant = product.variants.find(v => v.color === selectedColor && v.length === length);
+                    const unavailable = !variant || variant.stock === 0;
+                    return (
+                      <button key={length}
+                        onClick={() => !unavailable && (setSelectedLength(length), setQuantity(1))}
+                        disabled={unavailable}
+                        className={`px-4 py-2 text-xs tracking-wider uppercase border transition-all min-w-[3.5rem] text-center ${
+                          selectedLength === length && !unavailable
+                            ? "border-[#2C1F14] bg-[#2C1F14] text-[#FAF8F5]"
+                            : unavailable
+                              ? "border-[#E8E0D4] text-[#C4B5A5] opacity-40 cursor-not-allowed line-through"
+                              : "border-[#E8E0D4] text-[#8C7B6B] hover:border-[#2C1F14] hover:text-[#2C1F14]"
+                        }`}>
+                        {length}"
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Stock status */}
+            {inStock
+              ? <p className={`text-sm font-medium ${lowStock ? "text-[#E8A84C]" : "text-green-600"}`}>
+                  {lowStock ? `⚠ Only ${selectedVariant?.stock} left` : "✓ In Stock"}
+                </p>
+              : <p className="text-sm text-[#8C7B6B]">✗ Out of Stock</p>
+            }
+
+            {/* Error message */}
+            {cartState === "error" && cartError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm">
+                {cartError}
+              </div>
+            )}
+
+            {/* Qty + Add to Cart */}
+            <div className="flex gap-4 items-stretch">
+              <div className="flex border border-[#E8E0D4]">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-12 h-12 flex items-center justify-center text-[#8C7B6B] hover:text-[#2C1F14] transition-colors text-lg border-r border-[#E8E0D4]">
+                  −
+                </button>
+                <span className="w-12 flex items-center justify-center text-[#2C1F14] text-sm font-medium">
+                  {quantity}
+                </span>
                 <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  style={{
-                    width:   "42px",
-                    height:  "50px",
-                    color:   "var(--cream-dim)",
-                    fontSize: "1.2rem",
-                    cursor:  "pointer",
-                    transition: "color 0.2s",
-                    borderRight: "1px solid var(--border-subtle)",
-                  }}
-                >−</button>
-                <span style={{ width: "42px", textAlign: "center", fontSize: "0.9rem", color: "var(--cream)" }}>{quantity}</span>
-                <button
-                  onClick={() => setQuantity(Math.min(selectedVariant.stock, quantity + 1))}
-                  style={{
-                    width:   "42px",
-                    height:  "50px",
-                    color:   "var(--cream-dim)",
-                    fontSize: "1.2rem",
-                    cursor:  "pointer",
-                    transition: "color 0.2s",
-                    borderLeft: "1px solid var(--border-subtle)",
-                  }}
-                >+</button>
+                  onClick={() => setQuantity(Math.min(selectedVariant?.stock ?? 1, quantity + 1))}
+                  className="w-12 h-12 flex items-center justify-center text-[#8C7B6B] hover:text-[#2C1F14] transition-colors text-lg border-l border-[#E8E0D4]">
+                  +
+                </button>
               </div>
 
-              {/* Add to cart */}
-              <button
-                onClick={handleAddToCart}
-                disabled={!inStock}
-                style={{
-                  flex:          1,
-                  padding:       "0 1.5rem",
-                  height:        "50px",
-                  background:    addedToCart ? "#2A6B3C" : inStock ? "var(--gold)" : "var(--obsidian-light)",
-                  color:         addedToCart ? "white" : inStock ? "var(--obsidian)" : "var(--muted)",
-                  fontSize:      "0.78rem",
-                  fontWeight:    500,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  cursor:        inStock ? "pointer" : "not-allowed",
-                  transition:    "all 0.3s",
-                  border:        "none",
-                  display:       "flex",
-                  alignItems:    "center",
-                  justifyContent: "center",
-                  gap:           "0.5rem",
-                }}
-              >
-                {addedToCart ? (
+              <button onClick={handleAddToCart}
+                disabled={!inStock || cartState === "loading"}
+                className={`flex-1 h-12 px-6 flex items-center justify-center gap-2 text-xs tracking-[0.12em] uppercase font-medium transition-all ${
+                  cartState === "added"
+                    ? "bg-[#2A6B3C] text-white"
+                    : cartState === "loading"
+                      ? "bg-[#B8965A]/60 text-[#2C1F14] cursor-not-allowed"
+                      : inStock
+                        ? "bg-[#B8965A] text-[#2C1F14] hover:bg-[#D4AF6E]"
+                        : "bg-[#E8E0D4] text-[#C4B5A5] cursor-not-allowed"
+                }`}>
+                {cartState === "loading" ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-[#2C1F14] border-t-transparent rounded-full animate-spin" />
+                    Adding…
+                  </span>
+                ) : cartState === "added" ? (
                   <>✓ Added to Cart</>
                 ) : inStock ? (
                   <>
@@ -361,46 +320,40 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
               </button>
             </div>
 
-            {/* Buy now */}
+            {/* Buy Now */}
             {inStock && (
-              <Link href="/checkout" className="btn-outline" style={{ width: "100%", justifyContent: "center" }}>
-                <span>Buy Now</span>
+              <Link href="/checkout"
+                className="block w-full py-3 text-center text-xs tracking-[0.12em] uppercase border border-[#2C1F14] text-[#2C1F14] hover:bg-[#2C1F14] hover:text-[#FAF8F5] transition-colors">
+                Buy Now
               </Link>
             )}
 
-            {/* Variant specs */}
-            <div style={{
-              marginTop:  "2rem",
-              padding:    "1.25rem",
-              background: "var(--obsidian-soft)",
-              border:     "1px solid var(--border-subtle)",
-              display:    "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap:        "1rem",
-              fontSize:   "0.78rem",
-            }}>
-              {[
-                ["Density",   selectedVariant.density ?? "—"],
-                ["Lace Type", selectedVariant.laceType ?? "—"],
-                ["Cap Size",  selectedVariant.capSize  ?? "—"],
-              ].map(([label, val]) => (
-                <div key={label} style={{ textAlign: "center" }}>
-                  <div style={{ color: "var(--muted)", fontSize: "0.68rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.3rem" }}>{label}</div>
-                  <div style={{ color: "var(--cream)", fontWeight: 500 }}>{val}</div>
-                </div>
-              ))}
-            </div>
+            {/* Specs */}
+            {selectedVariant && (
+              <div className="grid grid-cols-3 gap-4 p-4 bg-[#F5F2ED] border border-[#E8E0D4]">
+                {[
+                  ["Density",   selectedVariant.density  ?? "—"],
+                  ["Lace Type", selectedVariant.laceType ?? "—"],
+                  ["Cap Size",  selectedVariant.capSize  ?? "—"],
+                ].map(([label, val]) => (
+                  <div key={label} className="text-center">
+                    <div className="text-[0.68rem] tracking-[0.1em] uppercase text-[#8C7B6B] mb-1">{label}</div>
+                    <div className="text-[#2C1F14] font-medium text-sm">{val}</div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {/* Guarantees */}
-            <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {/* Trust badges */}
+            <div className="space-y-3 pt-2">
               {[
                 ["🚚", "Free shipping on orders over R1,000"],
-                ["↩", "14-day hassle-free returns"],
-                ["✦", "100% virgin human hair guaranteed"],
+                ["↩",  "14-day hassle-free returns"],
+                ["✦",  "100% virgin human hair guaranteed"],
                 ["🔒", "Secure checkout via PayFast"],
               ].map(([icon, text]) => (
-                <div key={text} style={{ display: "flex", gap: "0.75rem", alignItems: "center", fontSize: "0.8rem", color: "var(--muted)" }}>
-                  <span>{icon}</span>
+                <div key={text as string} className="flex items-center gap-3 text-sm text-[#8C7B6B]">
+                  <span className="text-lg">{icon}</span>
                   <span>{text}</span>
                 </div>
               ))}
@@ -408,161 +361,111 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           </div>
         </div>
 
-        {/* ── Tabs: Description / Details / Reviews ─────── */}
-        <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "3rem", marginBottom: "5rem" }}>
-          {/* Tab bar */}
-          <div style={{ display: "flex", gap: "0", borderBottom: "1px solid var(--border-subtle)", marginBottom: "2.5rem" }}>
+        {/* ── TABS ─────────────────────────────────────────── */}
+        <div className="border-t border-[#E8E0D4] pt-12 pb-16">
+          <div className="flex border-b border-[#E8E0D4] mb-8">
             {(["description", "details", "reviews"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  padding:       "1rem 2rem",
-                  fontSize:      "0.75rem",
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color:         activeTab === tab ? "var(--gold)" : "var(--muted)",
-                  borderBottom:  activeTab === tab ? "2px solid var(--gold)" : "2px solid transparent",
-                  transition:    "all 0.2s",
-                  cursor:        "pointer",
-                  marginBottom:  "-1px",
-                  fontWeight:    activeTab === tab ? 500 : 400,
-                }}
-              >
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`px-6 py-3 text-xs tracking-[0.12em] uppercase transition-all border-b-2 -mb-px ${
+                  activeTab === tab
+                    ? "text-[#B8965A] border-[#B8965A] font-medium"
+                    : "text-[#8C7B6B] border-transparent hover:text-[#2C1F14]"
+                }`}>
                 {tab}
-                {tab === "reviews" && ` (${product.reviews.length})`}
+                {tab === "reviews" && <span className="ml-1">({product.reviewCount})</span>}
               </button>
             ))}
           </div>
 
-          {/* Description tab */}
           {activeTab === "description" && (
-            <div style={{ maxWidth: "720px" }}>
+            <div className="max-w-3xl space-y-4">
               {product.description.split("\n").filter(Boolean).map((para, i) => (
-                <p key={i} style={{ fontSize: "0.95rem", color: "var(--cream-dim)", lineHeight: 1.9, marginBottom: "1.25rem" }}>
-                  {para.trim()}
-                </p>
+                <p key={i} className="text-[0.95rem] text-[#8C7B6B] leading-relaxed">{para.trim()}</p>
               ))}
             </div>
           )}
 
-          {/* Details tab */}
-          {activeTab === "details" && (
-            <div style={{ maxWidth: "560px" }}>
+          {activeTab === "details" && selectedVariant && (
+            <div className="max-w-2xl divide-y divide-[#E8E0D4]">
               {[
-                ["Hair Type",     "100% Virgin Human Hair"],
-                ["Hair Texture",  "Deep Wave"],
-                ["Lace Type",     selectedVariant.laceType ?? "—"],
-                ["Density",       selectedVariant.density  ?? "—"],
-                ["Length",        `${selectedVariant.length}" inches`],
-                ["Cap Size",      selectedVariant.capSize  ?? "Medium"],
-                ["Cap Type",      "Swiss Lace + Elastic Band"],
-                ["Can Be Dyed",   "Yes"],
+                ["Hair Type",       "100% Virgin Human Hair"],
+                ["Lace Type",       selectedVariant.laceType ?? "—"],
+                ["Density",         selectedVariant.density  ?? "—"],
+                ["Length",          selectedVariant.length ? `${selectedVariant.length}"` : "—"],
+                ["Cap Size",        selectedVariant.capSize  ?? "Medium"],
+                ["Cap Type",        "Swiss Lace + Elastic Band"],
+                ["Can Be Dyed",     "Yes"],
                 ["Can Be Bleached", "Yes"],
-                ["SKU",           selectedVariant.sku],
+                ["SKU",             selectedVariant.sku],
               ].map(([label, val]) => (
-                <div key={label} style={{
-                  display:      "flex",
-                  justifyContent: "space-between",
-                  alignItems:   "center",
-                  padding:      "0.9rem 0",
-                  borderBottom: "1px solid var(--border-subtle)",
-                  fontSize:     "0.85rem",
-                }}>
-                  <span style={{ color: "var(--muted)", letterSpacing: "0.05em" }}>{label}</span>
-                  <span style={{ color: "var(--cream)", fontWeight: 400 }}>{val}</span>
+                <div key={label} className="flex justify-between py-3 text-sm">
+                  <span className="text-[#8C7B6B]">{label}</span>
+                  <span className="text-[#2C1F14] font-medium">{val}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Reviews tab */}
           {activeTab === "reviews" && (
-            <div style={{ maxWidth: "720px" }}>
-              {/* Summary */}
-              <div style={{
-                display:     "flex",
-                gap:         "3rem",
-                alignItems:  "center",
-                padding:     "2rem",
-                background:  "var(--obsidian-soft)",
-                border:      "1px solid var(--border-subtle)",
-                marginBottom: "2rem",
-              }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "4rem", color: "var(--gold)", lineHeight: 1 }}>
-                    {avgRating.toFixed(1)}
-                  </div>
-                  <Stars rating={avgRating} size="lg" />
-                  <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.4rem" }}>
-                    {product.reviews.length} reviews
-                  </div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  {[5, 4, 3, 2, 1].map((star) => {
-                    const count = product.reviews.filter(r => r.rating === star).length;
-                    const pct   = (count / product.reviews.length) * 100;
-                    return (
-                      <div key={star} style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.4rem" }}>
-                        <span style={{ fontSize: "0.72rem", color: "var(--muted)", width: "12px", textAlign: "right" }}>{star}</span>
-                        <span style={{ color: "var(--gold)", fontSize: "0.65rem" }}>★</span>
-                        <div style={{ flex: 1, height: "4px", background: "var(--obsidian-light)", borderRadius: "2px", overflow: "hidden" }}>
-                          <div style={{ width: `${pct}%`, height: "100%", background: "var(--gold)", borderRadius: "2px" }} />
-                        </div>
-                        <span style={{ fontSize: "0.72rem", color: "var(--muted)", width: "20px" }}>{count}</span>
+            <div className="max-w-3xl">
+              {product.reviews && product.reviews.length > 0 ? (
+                <>
+                  {avgRating && (
+                    <div className="flex gap-8 items-center p-6 bg-[#F5F2ED] border border-[#E8E0D4] mb-8">
+                      <div className="text-center">
+                        <div className="font-serif text-5xl text-[#B8965A] leading-none">{avgRating.toFixed(1)}</div>
+                        <Stars rating={avgRating} size="lg" />
+                        <div className="text-xs text-[#8C7B6B] mt-1">{product.reviewCount} reviews</div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Individual reviews */}
-              {product.reviews.map((review) => (
-                <div key={review.id} style={{
-                  padding:      "1.75rem 0",
-                  borderBottom: "1px solid var(--border-subtle)",
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.25rem" }}>
-                        <span style={{ fontSize: "0.88rem", fontWeight: 500, color: "var(--cream)" }}>
-                          {review.user.name}
-                        </span>
-                        {review.verified && (
-                          <span style={{
-                            fontSize:   "0.65rem",
-                            background: "rgba(201,168,76,0.1)",
-                            color:      "var(--gold)",
-                            padding:    "0.15rem 0.5rem",
-                            letterSpacing: "0.06em",
-                          }}>
-                            Verified Purchase
-                          </span>
-                        )}
+                      <div className="flex-1 space-y-1.5">
+                        {[5, 4, 3, 2, 1].map((star) => {
+                          const count = product.reviews.filter((r: any) => r.rating === star).length;
+                          const pct   = (count / product.reviews.length) * 100;
+                          return (
+                            <div key={star} className="flex items-center gap-3">
+                              <span className="text-xs text-[#8C7B6B] w-3 text-right">{star}</span>
+                              <span className="text-[#B8965A] text-xs">★</span>
+                              <div className="flex-1 h-1.5 bg-[#E8E0D4] rounded-full overflow-hidden">
+                                <div className="h-full bg-[#B8965A] rounded-full" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-xs text-[#8C7B6B] w-5">{count}</span>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <Stars rating={review.rating} />
                     </div>
-                    <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
-                      {new Date(review.createdAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}
-                    </span>
+                  )}
+                  <div className="space-y-6">
+                    {product.reviews.map((review: any) => (
+                      <div key={review.id} className="pb-6 border-b border-[#E8E0D4] last:border-0">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-[#2C1F14]">{review.user?.name}</span>
+                              {review.verified && (
+                                <span className="text-[0.65rem] bg-[#B8965A]/10 text-[#B8965A] px-2 py-0.5 tracking-wide">
+                                  Verified
+                                </span>
+                              )}
+                            </div>
+                            <Stars rating={review.rating} />
+                          </div>
+                          <time className="text-xs text-[#8C7B6B]">
+                            {new Date(review.createdAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}
+                          </time>
+                        </div>
+                        <p className="text-[0.88rem] text-[#8C7B6B] leading-relaxed">{review.comment}</p>
+                      </div>
+                    ))}
                   </div>
-                  <p style={{ fontSize: "0.88rem", color: "var(--cream-dim)", lineHeight: 1.8 }}>
-                    {review.comment}
-                  </p>
-                </div>
-              ))}
+                </>
+              ) : (
+                <p className="text-[#8C7B6B] text-sm">No reviews yet. Be the first to review this product.</p>
+              )}
             </div>
           )}
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 860px) {
-          .container > div[style*="repeat(2, 1fr)"] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

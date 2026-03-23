@@ -23,17 +23,22 @@ function StatCard({ label, value, sub, highlight = false, alert = false }: {
 }
 
 export default function AdminDashboardPage() {
-  const { token }        = useAuthStore();
-  const [stats, setStats]   = useState<AdminStats | null>(null);
+  const { getValidToken }     = useAuthStore();
+  const [stats, setStats]     = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
 
   useEffect(() => {
-    if (!token) return;
-    adminApi.stats(token).then(({ data }) => {
-      if (data) setStats(data);
+    async function load() {
+      const token = await getValidToken();
+      if (!token) { setError("Session expired. Please sign in again."); setLoading(false); return; }
+      const { data, error } = await adminApi.stats(token);
+      if (error) setError(error);
+      else if (data) setStats(data);
       setLoading(false);
-    });
-  }, [token]);
+    }
+    load();
+  }, []);
 
   if (loading) return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -43,32 +48,43 @@ export default function AdminDashboardPage() {
     </div>
   );
 
+  if (error) return (
+    <div className="bg-red-950/40 border border-red-800/50 text-red-400 px-5 py-4 text-sm">{error}</div>
+  );
+
   if (!stats) return <p className="text-[#6B6B6B]">Failed to load stats</p>;
+
+  // Safe defaults in case backend returns an older response shape
+  const alerts = stats.alerts ?? {
+    pendingOrders:  stats.orders?.pending   ?? 0,
+    outOfStock:     stats.products?.outOfStock ?? 0,
+    lowStock:       stats.products?.lowStock   ?? 0,
+    pendingReviews: 0,
+  };
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <p className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase mb-1">Overview</p>
         <h1 className="font-serif text-4xl text-[#F5F0E8] font-light">Dashboard</h1>
       </div>
 
       {/* Alerts */}
-      {(stats.alerts.pendingOrders > 0 || stats.alerts.outOfStock > 0) && (
+      {(alerts.pendingOrders > 0 || alerts.outOfStock > 0 || alerts.lowStock > 0) && (
         <div className="mb-6 flex flex-wrap gap-3">
-          {stats.alerts.pendingOrders > 0 && (
+          {alerts.pendingOrders > 0 && (
             <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs px-4 py-2">
-              ⚠ {stats.alerts.pendingOrders} pending order{stats.alerts.pendingOrders !== 1 ? "s" : ""} awaiting payment
+              ⚠ {alerts.pendingOrders} pending order{alerts.pendingOrders !== 1 ? "s" : ""} awaiting payment
             </div>
           )}
-          {stats.alerts.outOfStock > 0 && (
+          {alerts.outOfStock > 0 && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-2">
-              ✕ {stats.alerts.outOfStock} variant{stats.alerts.outOfStock !== 1 ? "s" : ""} out of stock
+              ✕ {alerts.outOfStock} variant{alerts.outOfStock !== 1 ? "s" : ""} out of stock
             </div>
           )}
-          {stats.alerts.lowStock > 0 && (
+          {alerts.lowStock > 0 && (
             <div className="bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs px-4 py-2">
-              ↓ {stats.alerts.lowStock} variant{stats.alerts.lowStock !== 1 ? "s" : ""} running low
+              ↓ {alerts.lowStock} variant{alerts.lowStock !== 1 ? "s" : ""} running low
             </div>
           )}
         </div>
@@ -78,14 +94,16 @@ export default function AdminDashboardPage() {
       <div className="mb-6">
         <p className="text-[#6B6B6B] text-xs tracking-widest uppercase mb-3">Revenue</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <StatCard label="Total Revenue" value={formatPrice(stats.revenue.total)} highlight />
+          <StatCard label="Total Revenue" value={formatPrice(stats.revenue?.total ?? 0)} highlight />
           <StatCard
             label="This Month"
-            value={formatPrice(stats.revenue.thisMonth)}
-            sub={stats.revenue.growth !== null ? `${stats.revenue.growth > 0 ? "+" : ""}${stats.revenue.growth}% vs last month` : undefined}
+            value={formatPrice(stats.revenue?.thisMonth ?? 0)}
+            sub={stats.revenue?.growth != null
+              ? `${stats.revenue.growth > 0 ? "+" : ""}${stats.revenue.growth}% vs last month`
+              : undefined}
             highlight
           />
-          <StatCard label="Last Month" value={formatPrice(stats.revenue.lastMonth)} />
+          <StatCard label="Last Month" value={formatPrice(stats.revenue?.lastMonth ?? 0)} />
         </div>
       </div>
 
@@ -93,33 +111,33 @@ export default function AdminDashboardPage() {
       <div className="mb-6">
         <p className="text-[#6B6B6B] text-xs tracking-widest uppercase mb-3">Orders</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Total Orders" value={stats.orders.total} />
-          <StatCard label="Today" value={stats.orders.today} />
-          <StatCard label="Pending" value={stats.orders.pending} alert={stats.orders.pending > 0} />
-          <StatCard label="Shipped" value={stats.orders.shipped} />
+          <StatCard label="Total Orders" value={stats.orders?.total   ?? 0} />
+          <StatCard label="Today"        value={stats.orders?.today   ?? 0} />
+          <StatCard label="Pending"      value={stats.orders?.pending ?? 0} alert={(stats.orders?.pending ?? 0) > 0} />
+          <StatCard label="Shipped"      value={stats.orders?.shipped ?? 0} />
         </div>
       </div>
 
-      {/* Customers & Products */}
+      {/* Store health */}
       <div className="mb-8">
         <p className="text-[#6B6B6B] text-xs tracking-widest uppercase mb-3">Store Health</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Customers" value={stats.customers.total} sub={`+${stats.customers.newThisMonth} this month`} />
-          <StatCard label="Products" value={stats.products.total} />
-          <StatCard label="Out of Stock" value={stats.products.outOfStock} alert={stats.products.outOfStock > 0} />
-          <StatCard label="Low Stock" value={stats.products.lowStock} alert={stats.products.lowStock > 0} />
+          <StatCard label="Customers"    value={stats.customers?.total      ?? 0} sub={`+${stats.customers?.newThisMonth ?? 0} this month`} />
+          <StatCard label="Products"     value={stats.products?.total       ?? 0} />
+          <StatCard label="Out of Stock" value={stats.products?.outOfStock  ?? 0} alert={(stats.products?.outOfStock ?? 0) > 0} />
+          <StatCard label="Low Stock"    value={stats.products?.lowStock    ?? 0} alert={(stats.products?.lowStock    ?? 0) > 0} />
         </div>
       </div>
 
-      {/* Quick links */}
+      {/* Quick actions */}
       <div>
         <p className="text-[#6B6B6B] text-xs tracking-widest uppercase mb-3">Quick Actions</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            ["/admin/orders?status=PENDING", "View Pending Orders"],
+            ["/admin/orders?status=PENDING",    "View Pending Orders"],
             ["/admin/inventory?outOfStock=true", "Restock Products"],
-            ["/admin/orders", "All Orders"],
-            ["/admin/customers", "Customers"],
+            ["/admin/orders",                    "All Orders"],
+            ["/admin/customers",                 "Customers"],
           ].map(([href, label]) => (
             <a key={href} href={href}
               className="bg-[#111111] border border-white/[0.06] hover:border-[#C9A84C]/40 p-4 text-sm text-[#6B6B6B] hover:text-[#C9A84C] transition-colors text-center">

@@ -1,18 +1,11 @@
-// proxy.ts  ← must live at the PROJECT ROOT (same level as package.json)
-// Renamed from middleware.ts — Next.js 16 uses proxy.ts convention.
-
- // ← fixes: crypto module not supported in Edge runtime
+// proxy.ts ← project root (same level as package.json)
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAccessToken } from "@/lib/auth/JWT";
 import { PROTECTED_PREFIXES, ADMIN_PREFIXES } from "@/lib/middleware/auth";
 import { Role } from "@prisma/client";
 
-export const runtime = "nodejs";
-
 // ─── RATE LIMITER ────────────────────────────────────────────
-// In-memory sliding window — good for single-server / serverless.
-// For multi-region production swap this for Upstash Redis.
 
 interface RateLimitWindow {
   count: number;
@@ -21,7 +14,6 @@ interface RateLimitWindow {
 
 const store = new Map<string, RateLimitWindow>();
 
-// Stricter limits on sensitive auth routes, generous on everything else.
 const LIMITS: Record<string, { windowMs: number; max: number }> = {
   "/api/auth/login":           { windowMs: 15 * 60_000, max: 10  },
   "/api/auth/register":        { windowMs: 60 * 60_000, max: 5   },
@@ -53,29 +45,20 @@ function withSecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set("X-Frame-Options",         "DENY");
   res.headers.set("X-XSS-Protection",        "1; mode=block");
   res.headers.set("Referrer-Policy",         "strict-origin-when-cross-origin");
-  res.headers.set(
-    "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=()"
-  );
+  res.headers.set("Permissions-Policy",      "camera=(), microphone=(), geolocation=()");
 
   if (process.env.NODE_ENV === "production") {
-    res.headers.set(
-      "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains; preload"
-    );
-    res.headers.set(
-      "Content-Security-Policy",
-      [
-        "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' https://www.payfast.co.za",
-        "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: https:",
-        "font-src 'self'",
-        "connect-src 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
-        "frame-src https://www.payfast.co.za https://sandbox.payfast.co.za",
-        "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
-      ].join("; ")
-    );
+    res.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    res.headers.set("Content-Security-Policy", [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://www.payfast.co.za",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self'",
+      "connect-src 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
+      "frame-src https://www.payfast.co.za https://sandbox.payfast.co.za",
+      "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
+    ].join("; "));
   }
 
   return res;
@@ -92,7 +75,7 @@ function extractAccessToken(req: NextRequest): string | null {
 // ─── REDIRECTS ───────────────────────────────────────────────
 
 function toLogin(req: NextRequest): NextResponse {
-  const url = new URL("/login", req.url);
+  const url = new URL("/auth/login", req.url);
   url.searchParams.set("redirect", req.nextUrl.pathname);
   return NextResponse.redirect(url);
 }
@@ -101,7 +84,8 @@ function apiUnauth(message: string): NextResponse {
   return NextResponse.json({ success: false, error: message }, { status: 401 });
 }
 
-// ─── MIDDLEWARE ──────────────────────────────────────────────
+// ─── PROXY HANDLER ───────────────────────────────────────────
+// Next.js 16 uses proxy.ts with a function named "middleware"
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -115,7 +99,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── 1. Rate limiting ────────────────────────────────────────
+  // ── 1. Rate limiting ─────────────────────────────────────
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
     ?? req.headers.get("x-real-ip")
     ?? "unknown";
@@ -129,7 +113,7 @@ export async function proxy(req: NextRequest) {
     );
   }
 
-  // ── 2. Admin route guard ────────────────────────────────────
+  // ── 2. Admin route guard ──────────────────────────────────
   if (ADMIN_PREFIXES.some((p) => pathname.startsWith(p))) {
     const token = extractAccessToken(req);
     if (!token) {
@@ -147,7 +131,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // ── 3. Protected route guard ────────────────────────────────
+  // ── 3. Protected route guard ──────────────────────────────
   if (PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))) {
     const token = extractAccessToken(req);
     if (!token) {
@@ -159,7 +143,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // ── 4. Apply security headers to all other responses ────────
+  // ── 4. Security headers on all responses ──────────────────
   return withSecurityHeaders(NextResponse.next());
 }
 
