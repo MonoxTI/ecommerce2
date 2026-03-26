@@ -239,7 +239,7 @@ export default function ShopPage() {
   async function handleAddToCart(product: Product) {
     const firstVariant = product.variants.find(v => v.stock > 0);
     if (!firstVariant) return;
-    if (!token) { window.location.href = "/login"; return; }
+    if (!token) { window.location.href = "/auth/login"; return; }
     const error = await addItem(firstVariant.id, 1, token);
     const msg = error ? error : `${product.name} added to bag`;
     setToast(msg);

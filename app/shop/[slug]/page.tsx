@@ -105,7 +105,7 @@ export default function ProductPage() {
 
     const token = await getValidToken();
     if (!token) {
-      router.push(`/login?redirect=/shop/${slug}`);
+      router.push(`/auth/login?redirect=/shop/${slug}`);
       return;
     }
 

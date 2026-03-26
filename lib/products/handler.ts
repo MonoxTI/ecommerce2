@@ -20,6 +20,7 @@ import {
   ProductSchema,
   ProductQuerySchema,
   ProductVariantSchema,
+  ReviewSchema
 } from "@/lib/validation/schemas";
 import { Role } from "@prisma/client";
 import { z } from "zod";
@@ -546,4 +547,55 @@ export async function handleUpdateCategory(
   });
 
   return ok(updated, "Category updated");
+}
+
+export async function getReviewsHandler(productSlug: string) {
+  const product = await db.product.findUnique({ where: { slug: productSlug } });
+  if (!product) return badRequest("Product not found");
+
+  const reviews = await db.review.findMany({
+    where:   { productId: product.id, verified: true },
+    orderBy: { createdAt: "desc" },
+    include: { user: { select: { name: true } } },
+  });
+
+  return ok(reviews);
+}
+
+export async function createReviewHandler(
+  userId: string,
+  productSlug: string,
+  body: unknown
+) {
+  const product = await db.product.findUnique({ where: { slug: productSlug } });
+  if (!product) return badRequest("Product not found");
+
+  const parsed = ReviewSchema.safeParse(body);
+  if (!parsed.success) return validationError(parsed.error);
+
+  const existing = await db.review.findFirst({
+    where: { userId, productId: product.id },
+  });
+  if (existing) return conflict("You have already reviewed this product");
+
+  const purchased = await db.order.findFirst({
+    where: {
+      userId,
+      status: { in: ["PAID", "SHIPPED", "DELIVERED"] },
+      items:  { some: { variant: { productId: product.id } } },
+    },
+  });
+
+  const review = await db.review.create({
+    data: {
+      userId:    userId,
+      productId: product.id,
+      rating:    parsed.data.rating,
+      comment:   parsed.data.comment,
+      verified:  !!purchased,
+    },
+    include: { user: { select: { name: true } } },
+  });
+
+  return created(review, "Review submitted successfully");
 }
