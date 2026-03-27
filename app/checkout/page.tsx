@@ -27,7 +27,7 @@ export default function CheckoutPage() {
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    if (!token) { router.push("/login?redirect=/checkout"); return; }
+    if (!token) { router.push("/auth/login?redirect=/checkout"); return; }
     addressesApi.list(token).then(({ data }) => {
       if (data) { setAddresses(data); if (data.length > 0) setSelectedAddr(data[0].id); }
     });

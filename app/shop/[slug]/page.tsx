@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { productsApi, Product } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
+import ReviewForm from "@/components/ReviewForm"; // ← Added import
 
 // ─── HELPERS ─────────────────────────────────────────────────
 
@@ -45,6 +46,9 @@ export default function ProductPage() {
   const [cartState, setCartState]   = useState<"idle" | "loading" | "added" | "error">("idle");
   const [cartError, setCartError]   = useState("");
 
+  // Review form visibility
+  const [showReviewForm, setShowReviewForm] = useState(false); // ← Added
+
   // ── Fetch product ──────────────────────────────────────────
   useEffect(() => {
     if (!slug) return;
@@ -52,7 +56,6 @@ export default function ProductPage() {
     productsApi.get(slug).then(({ data, error }) => {
       if (error || !data) { setNotFound(true); setLoading(false); return; }
       setProduct(data);
-      // Set defaults from first available variant
       const firstVariant = data.variants.find(v => v.stock > 0) ?? data.variants[0];
       if (firstVariant) {
         setSelectedColor(firstVariant.color ?? "");
@@ -120,6 +123,20 @@ export default function ProductPage() {
     }
   }
 
+  // ── Review handling ───────────────────────────────────────
+
+  function handleReviewSuccess(newReview: any) {
+    setProduct(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        reviews: [newReview, ...(prev.reviews || [])],
+        reviewCount: (prev.reviewCount || 0) + 1,
+      };
+    });
+    setShowReviewForm(false);
+  }
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#2C1F14] pt-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -168,7 +185,6 @@ export default function ProductPage() {
               )}
             </div>
 
-            {/* Thumbnails */}
             {product.images.length > 1 && (
               <div className="grid grid-cols-4 gap-3">
                 {product.images.map((img, i) => (
@@ -185,7 +201,6 @@ export default function ProductPage() {
 
           {/* ── Product Info ──────────────────────────────── */}
           <div className="space-y-6">
-            {/* Category + rating */}
             <div className="flex justify-between items-center">
               <span className="text-[0.7rem] tracking-[0.15em] uppercase text-[#B8965A] font-medium">
                 {product.category.name}
@@ -208,7 +223,6 @@ export default function ProductPage() {
 
             <div className="h-px bg-gradient-to-r from-transparent via-[#B8965A]/30 to-transparent" />
 
-            {/* Color selector */}
             {colors.length > 0 && (
               <div>
                 <p className="text-[0.72rem] tracking-[0.12em] uppercase text-[#8C7B6B] mb-3">
@@ -229,7 +243,6 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Length selector */}
             {lengths.length > 0 && (
               <div>
                 <p className="text-[0.72rem] tracking-[0.12em] uppercase text-[#8C7B6B] mb-3">
@@ -258,7 +271,6 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Stock status */}
             {inStock
               ? <p className={`text-sm font-medium ${lowStock ? "text-[#E8A84C]" : "text-green-600"}`}>
                   {lowStock ? `⚠ Only ${selectedVariant?.stock} left` : "✓ In Stock"}
@@ -266,14 +278,12 @@ export default function ProductPage() {
               : <p className="text-sm text-[#8C7B6B]">✗ Out of Stock</p>
             }
 
-            {/* Error message */}
             {cartState === "error" && cartError && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm">
                 {cartError}
               </div>
             )}
 
-            {/* Qty + Add to Cart */}
             <div className="flex gap-4 items-stretch">
               <div className="flex border border-[#E8E0D4]">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -320,7 +330,6 @@ export default function ProductPage() {
               </button>
             </div>
 
-            {/* Buy Now */}
             {inStock && (
               <Link href="/checkout"
                 className="block w-full py-3 text-center text-xs tracking-[0.12em] uppercase border border-[#2C1F14] text-[#2C1F14] hover:bg-[#2C1F14] hover:text-[#FAF8F5] transition-colors">
@@ -328,7 +337,6 @@ export default function ProductPage() {
               </Link>
             )}
 
-            {/* Specs */}
             {selectedVariant && (
               <div className="grid grid-cols-3 gap-4 p-4 bg-[#F5F2ED] border border-[#E8E0D4]">
                 {[
@@ -344,7 +352,6 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Trust badges */}
             <div className="space-y-3 pt-2">
               {[
                 ["🚚", "Free shipping on orders over R1,000"],
@@ -408,6 +415,26 @@ export default function ProductPage() {
 
           {activeTab === "reviews" && (
             <div className="max-w-3xl">
+              {/* Review Form Toggle */}
+              {!showReviewForm ? (
+                <button
+                  onClick={() => setShowReviewForm(true)}
+                  className="mb-6 bg-[#B8965A] hover:bg-[#D4AF6E] text-[#2C1F14] px-6 py-3 text-xs tracking-widest uppercase font-medium transition-colors"
+                >
+                  Write a Review
+                </button>
+              ) : (
+                <div className="mb-6">
+                  <ReviewForm slug={slug} onSuccess={handleReviewSuccess} />
+                  <button
+                    onClick={() => setShowReviewForm(false)}
+                    className="mt-3 text-xs text-[#8C7B6B] hover:text-[#2C1F14] underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
               {product.reviews && product.reviews.length > 0 ? (
                 <>
                   {avgRating && (
