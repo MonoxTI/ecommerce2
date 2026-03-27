@@ -1,5 +1,5 @@
-"use client";
 // app/account/profile/page.tsx
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -8,7 +8,6 @@ import { useAuthStore } from "@/store/authStore";
 import { authApi, Address } from "@/lib/api";
 
 // ─── HELPERS ──────────────────────────────────────────────────
-
 async function apiFetch(path: string, options: RequestInit = {}, token: string) {
   const res = await fetch(path, {
     ...options,
@@ -29,8 +28,39 @@ const EMPTY_ADDR = {
   province: "", postalCode: "", country: "South Africa",
 };
 
-// ─── ADDRESS FORM ─────────────────────────────────────────────
+// ── COLOR PALETTE (Cream / Black / White) ─────────────────
+const colors = {
+  bg: "bg-[#F1F1F1]",
+  bgCard: "bg-white",
+  bgAlt: "bg-[#F1F1F1]",
+  bgInput: "bg-white",
+  
+  text: "text-black",
+  textMuted: "text-[#333333]",
+  textLight: "text-[#666666]",
+  
+  border: "border-black/10",
+  borderLight: "border-black/5",
+  borderHover: "hover:border-black",
+  borderFocus: "focus:border-black focus:ring-1 focus:ring-black/10",
+  
+  buttonPrimary: "bg-black hover:bg-[#333333] text-white",
+  buttonOutline: "border border-black text-black hover:bg-black hover:text-white",
+  buttonDisabled: "opacity-40 cursor-not-allowed",
+  
+  error: "text-red-600",
+  errorBg: "bg-red-50",
+  errorBorder: "border-red-200",
+  
+  success: "text-[#2A6B3C]",
+  successBg: "bg-[#2A6B3C]/10",
+  successBorder: "border-[#2A6B3C]/30",
+  
+  link: "text-black hover:underline",
+  linkMuted: "text-[#666666] hover:text-black",
+};
 
+// ─── ADDRESS FORM ─────────────────────────────────────────────
 function AddressForm({
   initial, onSave, onCancel, loading,
 }: {
@@ -56,19 +86,25 @@ function AddressForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {fields.map(([key, label, type, ph]) => (
           <div key={key} className={key === "street" ? "sm:col-span-2" : ""}>
-            <label className="block text-[#6B6B6B] text-xs tracking-[0.14em] uppercase mb-1.5">{label}</label>
+            <label className={`block ${colors.textLight} text-xs tracking-[0.14em] uppercase mb-1.5 font-cormorant`}>
+              {label}
+            </label>
             <input
               type={type} required value={form[key]}
               onChange={e => set(key, e.target.value)}
               placeholder={ph}
-              className="w-full bg-[#0A0A0A] border border-white/[0.08] text-[#F5F0E8] px-3 py-2.5 text-sm outline-none focus:border-[#C9A84C] transition-colors placeholder:text-[#6B6B6B]"
+              className={`w-full ${colors.bgInput} border ${colors.border} ${colors.text} px-3 py-2.5 text-sm outline-none ${colors.borderFocus} transition-colors placeholder:${colors.textLight} font-cormorant rounded-sm`}
             />
           </div>
         ))}
         <div>
-          <label className="block text-[#6B6B6B] text-xs tracking-[0.14em] uppercase mb-1.5">Province</label>
-          <select value={form.province} onChange={e => set("province", e.target.value)} required
-            className="w-full bg-[#0A0A0A] border border-white/[0.08] text-[#F5F0E8] px-3 py-2.5 text-sm outline-none focus:border-[#C9A84C] transition-colors">
+          <label className={`block ${colors.textLight} text-xs tracking-[0.14em] uppercase mb-1.5 font-cormorant`}>Province</label>
+          <select 
+            value={form.province} 
+            onChange={e => set("province", e.target.value)} 
+            required
+            className={`w-full ${colors.bgInput} border ${colors.border} ${colors.text} px-3 py-2.5 text-sm outline-none ${colors.borderFocus} transition-colors font-cormorant rounded-sm`}
+          >
             <option value="">Select province…</option>
             {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
@@ -76,12 +112,18 @@ function AddressForm({
       </div>
 
       <div className="flex gap-3 pt-2">
-        <button type="submit" disabled={loading}
-          className="bg-[#C9A84C] hover:bg-[#E2C97E] text-[#0A0A0A] px-5 py-2.5 text-xs tracking-[0.12em] uppercase font-medium transition-colors disabled:opacity-60">
+        <button 
+          type="submit" 
+          disabled={loading}
+          className={`${colors.buttonPrimary} px-5 py-2.5 text-xs tracking-[0.12em] uppercase font-medium transition-colors disabled:${colors.buttonDisabled} font-cormorant rounded-sm`}
+        >
           {loading ? "Saving…" : "Save Address"}
         </button>
-        <button type="button" onClick={onCancel}
-          className="text-[#6B6B6B] hover:text-[#F5F0E8] px-4 py-2.5 text-xs tracking-[0.12em] uppercase transition-colors">
+        <button 
+          type="button" 
+          onClick={onCancel}
+          className={`${colors.textLight} ${colors.linkMuted} px-4 py-2.5 text-xs tracking-[0.12em] uppercase transition-colors font-cormorant`}
+        >
           Cancel
         </button>
       </div>
@@ -90,7 +132,6 @@ function AddressForm({
 }
 
 // ─── ADDRESS CARD ─────────────────────────────────────────────
-
 function AddressCard({ address, onEdit, onDelete, deleting }: {
   address:  Address;
   onEdit:   (a: Address) => void;
@@ -98,24 +139,29 @@ function AddressCard({ address, onEdit, onDelete, deleting }: {
   deleting: boolean;
 }) {
   return (
-    <div className="border border-white/[0.06] p-4 bg-[#0D0D0D] group hover:border-white/[0.12] transition-colors">
+    <div className={`border ${colors.border} p-4 ${colors.bgCard} group ${colors.borderHover} transition-colors rounded-sm`}>
       <div className="flex justify-between items-start gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[#F5F0E8] text-sm font-medium">{address.fullName}</p>
-          <p className="text-[#6B6B6B] text-xs mt-1 leading-relaxed">
+          <p className={`${colors.text} text-sm font-medium font-cormorant`}>{address.fullName}</p>
+          <p className={`${colors.textLight} text-xs mt-1 leading-relaxed font-cormorant`}>
             {address.street}<br />
             {address.city}, {address.province} {address.postalCode}<br />
             {address.country}
           </p>
-          <p className="text-[#6B6B6B] text-xs mt-1">{address.phone}</p>
+          <p className={`${colors.textLight} text-xs mt-1 font-cormorant`}>{address.phone}</p>
         </div>
         <div className="flex flex-col gap-2 flex-shrink-0">
-          <button onClick={() => onEdit(address)}
-            className="text-[#C9A84C] text-xs tracking-widest uppercase hover:underline transition-colors">
+          <button 
+            onClick={() => onEdit(address)}
+            className={`${colors.text} text-xs tracking-widest uppercase ${colors.linkMuted} transition-colors font-cormorant`}
+          >
             Edit
           </button>
-          <button onClick={() => onDelete(address.id)} disabled={deleting}
-            className="text-red-400/50 hover:text-red-400 text-xs tracking-widest uppercase transition-colors disabled:opacity-30">
+          <button 
+            onClick={() => onDelete(address.id)} 
+            disabled={deleting}
+            className={`${colors.error}/70 hover:${colors.error} text-xs tracking-widest uppercase transition-colors disabled:${colors.buttonDisabled} font-cormorant`}
+          >
             {deleting ? "…" : "Delete"}
           </button>
         </div>
@@ -125,7 +171,6 @@ function AddressCard({ address, onEdit, onDelete, deleting }: {
 }
 
 // ─── PAGE ─────────────────────────────────────────────────────
-
 export default function ProfilePage() {
   const router  = useRouter();
   const { user, getValidToken, logout } = useAuthStore();
@@ -158,7 +203,6 @@ export default function ProfilePage() {
   }, []);
 
   // ── Password ──────────────────────────────────────────────
-
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
     setPwError(""); setPwSuccess("");
@@ -176,14 +220,12 @@ export default function ProfilePage() {
   }
 
   // ── Addresses ────────────────────────────────────────────
-
   async function handleSaveAddress(formData: typeof EMPTY_ADDR) {
     setSavingAddr(true); setAddrError("");
     const token = await getValidToken();
     if (!token) return setSavingAddr(false);
 
     if (editingAddr) {
-      // Update existing
       const { ok, data, error } = await apiFetch(
         `/api/addresses/${editingAddr.id}`,
         { method: "PATCH", body: JSON.stringify(formData) }, token
@@ -193,7 +235,6 @@ export default function ProfilePage() {
       setAddresses(prev => prev.map(a => a.id === editingAddr.id ? data : a));
       setEditingAddr(null);
     } else {
-      // Create new
       const { ok, data, error } = await apiFetch(
         "/api/addresses",
         { method: "POST", body: JSON.stringify(formData) }, token
@@ -222,24 +263,27 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] pt-24 pb-16">
+    <div className={`min-h-screen ${colors.bg} pt-24 pb-16 font-cormorant`}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
 
         {/* Header */}
-        <div className="mb-8 pb-6 border-b border-white/[0.06]">
-          <p className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase mb-1">My Account</p>
-          <h1 className="font-serif text-4xl text-[#F5F0E8] font-light">Profile</h1>
+        <div className={`mb-8 pb-6 border-b ${colors.border}`}>
+          <p className={`${colors.text} text-xs tracking-[0.2em] uppercase mb-1 font-cormorant font-medium`}>My Account</p>
+          <h1 className="font-playfair text-4xl text-black font-semibold">Profile</h1>
         </div>
 
         {/* Nav */}
-        <div className="flex gap-6 mb-10 text-xs tracking-widest uppercase border-b border-white/[0.06] pb-4">
+        <div className={`flex gap-6 mb-10 text-xs tracking-widest uppercase border-b ${colors.border} pb-4`}>
           {[["Orders", "/account/orders"], ["Profile", "/account/profile"]].map(([label, href]) => (
-            <Link key={label} href={href}
-              className={`pb-4 -mb-4 border-b-2 transition-colors ${
+            <Link 
+              key={label} 
+              href={href}
+              className={`pb-4 -mb-4 border-b-2 transition-colors font-cormorant ${
                 href === "/account/profile"
-                  ? "border-[#C9A84C] text-[#C9A84C]"
-                  : "border-transparent text-[#6B6B6B] hover:text-[#F5F0E8]"
-              }`}>
+                  ? "border-black text-black font-medium"
+                  : `border-transparent ${colors.textLight} ${colors.linkMuted}`
+              }`}
+            >
               {label}
             </Link>
           ))}
@@ -248,9 +292,9 @@ export default function ProfilePage() {
         <div className="space-y-6">
 
           {/* ── Account info ───────────────────────────────── */}
-          <div className="bg-[#111111] border border-white/[0.06] p-6">
-            <h2 className="font-serif text-xl text-[#F5F0E8] font-light mb-5">Account Details</h2>
-            <div className="space-y-0 divide-y divide-white/[0.06]">
+          <div className={`${colors.bgCard} border ${colors.border} p-6 rounded-sm`}>
+            <h2 className="font-playfair text-xl text-black font-semibold mb-5">Account Details</h2>
+            <div className={`space-y-0 divide-y ${colors.borderLight}`}>
               {[
                 ["Name",         user?.name],
                 ["Email",        user?.email],
@@ -261,36 +305,37 @@ export default function ProfilePage() {
                   : "—"],
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between items-center py-3">
-                  <span className="text-[#6B6B6B] text-xs tracking-widest uppercase">{label}</span>
-                  <span className="text-[#F5F0E8] text-sm">{val ?? "—"}</span>
+                  <span className={`${colors.textLight} text-xs tracking-widest uppercase font-cormorant`}>{label}</span>
+                  <span className={`${colors.text} text-sm font-cormorant`}>{val ?? "—"}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* ── Shipping Addresses ─────────────────────────── */}
-          <div className="bg-[#111111] border border-white/[0.06] p-6">
+          <div className={`${colors.bgCard} border ${colors.border} p-6 rounded-sm`}>
             <div className="flex justify-between items-center mb-5">
-              <h2 className="font-serif text-xl text-[#F5F0E8] font-light">Shipping Addresses</h2>
+              <h2 className="font-playfair text-xl text-black font-semibold">Shipping Addresses</h2>
               {!showAddForm && !editingAddr && (
                 <button
                   onClick={() => setShowAddForm(true)}
-                  className="text-[#C9A84C] text-xs tracking-[0.12em] uppercase hover:underline transition-colors">
+                  className={`${colors.text} text-xs tracking-[0.12em] uppercase ${colors.linkMuted} transition-colors font-cormorant`}
+                >
                   + Add Address
                 </button>
               )}
             </div>
 
             {addrError && (
-              <div className="mb-4 px-3 py-2 bg-red-950/40 border border-red-800/50 text-red-400 text-sm">
+              <div className={`mb-4 px-3 py-2 ${colors.errorBg} ${colors.errorBorder} border ${colors.error} text-sm font-cormorant rounded-sm`}>
                 {addrError}
               </div>
             )}
 
             {/* Add new form */}
             {showAddForm && (
-              <div className="mb-5 p-4 border border-[#C9A84C]/20 bg-[#0D0D0D]">
-                <p className="text-[#C9A84C] text-xs tracking-[0.14em] uppercase mb-4">New Address</p>
+              <div className={`mb-5 p-4 border border-black/20 ${colors.bgAlt} rounded-sm`}>
+                <p className={`${colors.text} text-xs tracking-[0.14em] uppercase mb-4 font-cormorant font-medium`}>New Address</p>
                 <AddressForm
                   initial={EMPTY_ADDR}
                   onSave={handleSaveAddress}
@@ -302,8 +347,8 @@ export default function ProfilePage() {
 
             {/* Edit form */}
             {editingAddr && (
-              <div className="mb-5 p-4 border border-[#C9A84C]/20 bg-[#0D0D0D]">
-                <p className="text-[#C9A84C] text-xs tracking-[0.14em] uppercase mb-4">Edit Address</p>
+              <div className={`mb-5 p-4 border border-black/20 ${colors.bgAlt} rounded-sm`}>
+                <p className={`${colors.text} text-xs tracking-[0.14em] uppercase mb-4 font-cormorant font-medium`}>Edit Address</p>
                 <AddressForm
                   initial={{
                     fullName:   editingAddr.fullName,
@@ -324,13 +369,15 @@ export default function ProfilePage() {
             {/* Address list */}
             {addrLoading ? (
               <div className="space-y-3">
-                {[1, 2].map(i => <div key={i} className="h-24 bg-white/[0.03] animate-pulse" />)}
+                {[1, 2].map(i => <div key={i} className={`h-24 ${colors.bgAlt} border ${colors.border} animate-pulse rounded-sm`} />)}
               </div>
             ) : addresses.length === 0 && !showAddForm ? (
-              <div className="text-center py-8 border border-dashed border-white/[0.06]">
-                <p className="text-[#6B6B6B] text-sm mb-3">No addresses saved yet</p>
-                <button onClick={() => setShowAddForm(true)}
-                  className="text-[#C9A84C] text-xs tracking-[0.12em] uppercase hover:underline">
+              <div className={`text-center py-8 border border-dashed ${colors.border} rounded-sm`}>
+                <p className={`${colors.textLight} text-sm mb-3 font-cormorant`}>No addresses saved yet</p>
+                <button 
+                  onClick={() => setShowAddForm(true)}
+                  className={`${colors.text} text-xs tracking-[0.12em] uppercase ${colors.linkMuted} font-cormorant`}
+                >
                   Add your first address
                 </button>
               </div>
@@ -350,11 +397,19 @@ export default function ProfilePage() {
           </div>
 
           {/* ── Change Password ────────────────────────────── */}
-          <div className="bg-[#111111] border border-white/[0.06] p-6">
-            <h2 className="font-serif text-xl text-[#F5F0E8] font-light mb-5">Change Password</h2>
+          <div className={`${colors.bgCard} border ${colors.border} p-6 rounded-sm`}>
+            <h2 className="font-playfair text-xl text-black font-semibold mb-5">Change Password</h2>
 
-            {pwError   && <div className="mb-4 px-3 py-2 bg-red-950/40 border border-red-800/50 text-red-400 text-sm">{pwError}</div>}
-            {pwSuccess && <div className="mb-4 px-3 py-2 bg-green-950/40 border border-green-800/50 text-green-400 text-sm">{pwSuccess}</div>}
+            {pwError && (
+              <div className={`mb-4 px-3 py-2 ${colors.errorBg} ${colors.errorBorder} border ${colors.error} text-sm font-cormorant rounded-sm`}>
+                {pwError}
+              </div>
+            )}
+            {pwSuccess && (
+              <div className={`mb-4 px-3 py-2 ${colors.successBg} ${colors.successBorder} border ${colors.success} text-sm font-cormorant rounded-sm`}>
+                {pwSuccess}
+              </div>
+            )}
 
             <form onSubmit={handleChangePassword} className="space-y-4">
               {[
@@ -363,16 +418,22 @@ export default function ProfilePage() {
                 ["Confirm New Password", "confirm"],
               ].map(([label, key]) => (
                 <div key={key}>
-                  <label className="block text-[#6B6B6B] text-xs tracking-widest uppercase mb-2">{label}</label>
-                  <input type="password" required
+                  <label className={`block ${colors.textLight} text-xs tracking-widest uppercase mb-2 font-cormorant`}>
+                    {label}
+                  </label>
+                  <input 
+                    type="password" required
                     value={pwForm[key as keyof typeof pwForm]}
                     onChange={e => setPwForm({ ...pwForm, [key]: e.target.value })}
-                    className="w-full bg-[#1A1A1A] border border-white/[0.06] text-[#F5F0E8] px-4 py-3 text-sm outline-none focus:border-[#C9A84C] transition-colors"
+                    className={`w-full ${colors.bgInput} border ${colors.border} ${colors.text} px-4 py-3 text-sm outline-none ${colors.borderFocus} transition-colors font-cormorant rounded-sm`}
                   />
                 </div>
               ))}
-              <button type="submit" disabled={pwLoading}
-                className="w-full bg-[#C9A84C] hover:bg-[#E2C97E] text-[#0A0A0A] py-3 text-xs font-medium tracking-widest uppercase transition-colors disabled:opacity-60">
+              <button 
+                type="submit" 
+                disabled={pwLoading}
+                className={`w-full ${colors.buttonPrimary} py-3 text-xs font-medium tracking-widest uppercase transition-colors disabled:${colors.buttonDisabled} font-cormorant rounded-sm`}
+              >
                 {pwLoading ? "Updating…" : "Update Password"}
               </button>
             </form>
@@ -380,8 +441,10 @@ export default function ProfilePage() {
 
           {/* Sign out */}
           <div className="flex justify-end">
-            <button onClick={handleLogout}
-              className="border border-red-800/40 text-red-400 hover:bg-red-950/30 px-6 py-2 text-xs tracking-widest uppercase transition-colors">
+            <button 
+              onClick={handleLogout}
+              className={`border border-red-200 ${colors.error} hover:bg-red-50 px-6 py-2 text-xs tracking-widest uppercase transition-colors font-cormorant rounded-sm`}
+            >
               Sign Out
             </button>
           </div>

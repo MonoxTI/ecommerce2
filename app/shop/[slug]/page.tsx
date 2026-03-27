@@ -1,5 +1,5 @@
-"use client";
 // app/shop/[slug]/page.tsx
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -7,24 +7,22 @@ import { useParams, useRouter } from "next/navigation";
 import { productsApi, Product } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
-import ReviewForm from "@/components/ReviewForm"; // ← Added import
+import ReviewForm from "@/components/ReviewForm";
 
 // ─── HELPERS ─────────────────────────────────────────────────
-
 function formatPrice(cents: number) {
   return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}`;
 }
 
 function Stars({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg" }) {
   return (
-    <span className={size === "lg" ? "text-[#B8965A] text-base" : "text-[#B8965A] text-xs"}>
+    <span className={size === "lg" ? "text-black text-base" : "text-black text-xs"}>
       {"★".repeat(Math.floor(rating))}{"☆".repeat(5 - Math.floor(rating))}
     </span>
   );
 }
 
 // ─── PAGE ─────────────────────────────────────────────────────
-
 export default function ProductPage() {
   const params              = useParams();
   const router              = useRouter();
@@ -47,7 +45,7 @@ export default function ProductPage() {
   const [cartError, setCartError]   = useState("");
 
   // Review form visibility
-  const [showReviewForm, setShowReviewForm] = useState(false); // ← Added
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   // ── Fetch product ──────────────────────────────────────────
   useEffect(() => {
@@ -65,17 +63,38 @@ export default function ProductPage() {
     });
   }, [slug]);
 
+  // ── COLOR PALETTE (Cream / Black / White) ─────────────────
+  const colors = {
+    bg: "bg-[#F1F1F1]",
+    bgCard: "bg-white",
+    bgAlt: "bg-[#F1F1F1]",
+    text: "text-black",
+    textMuted: "text-[#333333]",
+    textLight: "text-[#666666]",
+    border: "border-black/10",
+    borderHover: "hover:border-black",
+    hover: "hover:text-black",
+    badgeBg: "bg-black",
+    badgeText: "text-white",
+    buttonBg: "bg-black",
+    buttonHover: "hover:bg-[#333333]",
+    buttonAdded: "bg-[#2A6B3C]",
+    divider: "from-transparent via-black/20 to-transparent",
+    lowStock: "text-[#B85C3C]",
+    inStock: "text-[#2A6B3C]",
+  };
+
   if (loading) return (
-    <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center pt-20">
-      <div className="w-6 h-6 border-2 border-[#B8965A] border-t-transparent rounded-full animate-spin" />
+    <div className={`min-h-screen ${colors.bg} flex items-center justify-center pt-20`}>
+      <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (notFound || !product) return (
-    <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center pt-20 text-center px-4">
+    <div className={`min-h-screen ${colors.bg} flex items-center justify-center pt-20 text-center px-4`}>
       <div>
-        <p className="font-serif text-3xl text-[#C4B5A5] font-light mb-4">Product not found</p>
-        <Link href="/shop" className="bg-[#B8965A] text-[#2C1F14] px-6 py-3 text-xs tracking-widest uppercase">
+        <p className="font-playfair text-3xl text-[#666666] font-medium mb-4">Product not found</p>
+        <Link href="/shop" className={`${colors.buttonBg} ${colors.buttonHover} text-white px-6 py-3 text-xs tracking-widest uppercase transition-colors font-cormorant`}>
           Back to Shop
         </Link>
       </div>
@@ -83,9 +102,8 @@ export default function ProductPage() {
   );
 
   // ── Derived state ──────────────────────────────────────────
-
-  const colors  = [...new Set(product.variants.map(v => v.color).filter(Boolean))] as string[];
-  const lengths = [...new Set(product.variants.map(v => v.length).filter(Boolean))]
+  const colorsList  = [...new Set(product.variants.map(v => v.color).filter(Boolean))] as string[];
+  const lengthsList = [...new Set(product.variants.map(v => v.length).filter(Boolean))]
     .sort((a, b) => Number(a) - Number(b)) as string[];
 
   const selectedVariant = product.variants.find(
@@ -100,7 +118,6 @@ export default function ProductPage() {
     : null;
 
   // ── Add to cart ────────────────────────────────────────────
-
   async function handleAddToCart() {
     if (!selectedVariant || !inStock) return;
     setCartState("loading");
@@ -124,7 +141,6 @@ export default function ProductPage() {
   }
 
   // ── Review handling ───────────────────────────────────────
-
   function handleReviewSuccess(newReview: any) {
     setProduct(prev => {
       if (!prev) return prev;
@@ -138,20 +154,20 @@ export default function ProductPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#2C1F14] pt-28">
+    <div className={`min-h-screen ${colors.bg} ${colors.text} pt-28 font-cormorant`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-xs tracking-widest uppercase text-[#C4B5A5] pb-8">
-          <Link href="/" className="hover:text-[#B8965A] transition-colors">Home</Link>
+        <nav className="flex items-center gap-2 text-xs tracking-widest uppercase text-[#666666] pb-8 font-cormorant">
+          <Link href="/" className={`${colors.hover} transition-colors`}>Home</Link>
           <span>›</span>
-          <Link href="/shop" className="hover:text-[#B8965A] transition-colors">Shop</Link>
+          <Link href="/shop" className={`${colors.hover} transition-colors`}>Shop</Link>
           <span>›</span>
-          <Link href={`/shop?category=${product.category.slug}`} className="hover:text-[#B8965A] transition-colors">
+          <Link href={`/shop?category=${product.category.slug}`} className={`${colors.hover} transition-colors`}>
             {product.category.name}
           </Link>
           <span>›</span>
-          <span className="text-[#8C7B6B] truncate max-w-[200px]">{product.name}</span>
+          <span className={`${colors.textMuted} truncate max-w-[200px]`}>{product.name}</span>
         </nav>
 
         {/* Main layout */}
@@ -159,15 +175,16 @@ export default function ProductPage() {
 
           {/* ── Gallery ──────────────────────────────────── */}
           <div className="space-y-4">
-            <div className="relative aspect-[4/5] overflow-hidden bg-[#F5F2ED]">
+            <div className="relative aspect-[4/5] overflow-hidden bg-[#F1F1F1]">
               {product.images[activeImage] ? (
                 <img
                   src={product.images[activeImage].url}
                   alt={product.name}
                   className="w-full h-full object-cover transition-opacity duration-300"
+                  loading="lazy"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-[#C4B5A5] text-xs tracking-widest uppercase">
+                <div className="w-full h-full flex items-center justify-center text-[#666666] text-xs tracking-widest uppercase font-cormorant">
                   No Image
                 </div>
               )}
@@ -175,11 +192,13 @@ export default function ProductPage() {
                 <>
                   <button
                     onClick={() => setActiveImage((activeImage - 1 + product.images.length) % product.images.length)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-[#2C1F14]/70 border border-[#E8E0D4] text-[#FAF8F5] hover:border-[#B8965A] transition-colors"
+                    className={`absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/70 border ${colors.border} text-white ${colors.borderHover} transition-colors`}
+                    aria-label="Previous image"
                   >‹</button>
                   <button
                     onClick={() => setActiveImage((activeImage + 1) % product.images.length)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-[#2C1F14]/70 border border-[#E8E0D4] text-[#FAF8F5] hover:border-[#B8965A] transition-colors"
+                    className={`absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/70 border ${colors.border} text-white ${colors.borderHover} transition-colors`}
+                    aria-label="Next image"
                   >›</button>
                 </>
               )}
@@ -188,11 +207,15 @@ export default function ProductPage() {
             {product.images.length > 1 && (
               <div className="grid grid-cols-4 gap-3">
                 {product.images.map((img, i) => (
-                  <button key={i} onClick={() => setActiveImage(i)}
+                  <button 
+                    key={i} 
+                    onClick={() => setActiveImage(i)}
                     className={`aspect-square overflow-hidden transition-all ${
-                      i === activeImage ? "ring-2 ring-[#B8965A]" : "ring-2 ring-transparent hover:ring-[#E8E0D4]"
-                    }`}>
-                    <img src={img.url} alt={`View ${i + 1}`} className="w-full h-full object-cover" />
+                      i === activeImage ? "ring-2 ring-black" : "ring-2 ring-transparent hover:ring-black/20"
+                    }`}
+                    aria-label={`View image ${i + 1}`}
+                  >
+                    <img src={img.url} alt={`View ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
                   </button>
                 ))}
               </div>
@@ -202,39 +225,41 @@ export default function ProductPage() {
           {/* ── Product Info ──────────────────────────────── */}
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <span className="text-[0.7rem] tracking-[0.15em] uppercase text-[#B8965A] font-medium">
+              <span className="text-[0.7rem] tracking-[0.15em] uppercase text-black font-cormorant font-medium">
                 {product.category.name}
               </span>
               {avgRating && (
-                <div className="flex items-center gap-2 text-sm text-[#8C7B6B]">
+                <div className="flex items-center gap-2 text-sm text-[#666666] font-cormorant">
                   <Stars rating={avgRating} />
                   <span>{avgRating.toFixed(1)} ({product.reviewCount})</span>
                 </div>
               )}
             </div>
 
-            <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl font-light text-[#2C1F14] leading-tight">
+            <h1 className="font-playfair text-3xl md:text-4xl lg:text-5xl font-semibold text-black leading-tight">
               {product.name}
             </h1>
 
-            <p className="font-serif text-3xl text-[#B8965A]">
+            <p className="font-playfair text-3xl text-black font-semibold">
               {formatPrice(selectedVariant?.price ?? product.minPrice)}
             </p>
 
-            <div className="h-px bg-gradient-to-r from-transparent via-[#B8965A]/30 to-transparent" />
+            <div className={`h-px bg-gradient-to-r ${colors.divider}`} />
 
-            {colors.length > 0 && (
+            {colorsList.length > 0 && (
               <div>
-                <p className="text-[0.72rem] tracking-[0.12em] uppercase text-[#8C7B6B] mb-3">
-                  Color: <span className="text-[#2C1F14] font-medium">{selectedColor}</span>
+                <p className="text-[0.72rem] tracking-[0.12em] uppercase text-[#666666] mb-3 font-cormorant">
+                  Color: <span className="text-black font-medium">{selectedColor}</span>
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {colors.map((color) => (
-                    <button key={color} onClick={() => { setSelectedColor(color); setQuantity(1); }}
-                      className={`px-4 py-2 text-xs tracking-wider uppercase border transition-all ${
+                  {colorsList.map((color) => (
+                    <button 
+                      key={color} 
+                      onClick={() => { setSelectedColor(color); setQuantity(1); }}
+                      className={`px-4 py-2 text-xs tracking-wider uppercase border transition-all font-cormorant ${
                         selectedColor === color
-                          ? "border-[#2C1F14] bg-[#2C1F14] text-[#FAF8F5]"
-                          : "border-[#E8E0D4] text-[#8C7B6B] hover:border-[#2C1F14] hover:text-[#2C1F14]"
+                          ? "border-black bg-black text-white"
+                          : "border-black/10 text-[#666666] hover:border-black hover:text-black"
                       }`}>
                       {color}
                     </button>
@@ -243,25 +268,26 @@ export default function ProductPage() {
               </div>
             )}
 
-            {lengths.length > 0 && (
+            {lengthsList.length > 0 && (
               <div>
-                <p className="text-[0.72rem] tracking-[0.12em] uppercase text-[#8C7B6B] mb-3">
-                  Length: <span className="text-[#2C1F14] font-medium">{selectedLength}"</span>
+                <p className="text-[0.72rem] tracking-[0.12em] uppercase text-[#666666] mb-3 font-cormorant">
+                  Length: <span className="text-black font-medium">{selectedLength}"</span>
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {lengths.map((length) => {
+                  {lengthsList.map((length) => {
                     const variant = product.variants.find(v => v.color === selectedColor && v.length === length);
                     const unavailable = !variant || variant.stock === 0;
                     return (
-                      <button key={length}
+                      <button 
+                        key={length}
                         onClick={() => !unavailable && (setSelectedLength(length), setQuantity(1))}
                         disabled={unavailable}
-                        className={`px-4 py-2 text-xs tracking-wider uppercase border transition-all min-w-[3.5rem] text-center ${
+                        className={`px-4 py-2 text-xs tracking-wider uppercase border transition-all min-w-[3.5rem] text-center font-cormorant ${
                           selectedLength === length && !unavailable
-                            ? "border-[#2C1F14] bg-[#2C1F14] text-[#FAF8F5]"
+                            ? "border-black bg-black text-white"
                             : unavailable
-                              ? "border-[#E8E0D4] text-[#C4B5A5] opacity-40 cursor-not-allowed line-through"
-                              : "border-[#E8E0D4] text-[#8C7B6B] hover:border-[#2C1F14] hover:text-[#2C1F14]"
+                              ? "border-black/10 text-[#666666] opacity-40 cursor-not-allowed line-through"
+                              : "border-black/10 text-[#666666] hover:border-black hover:text-black"
                         }`}>
                         {length}"
                       </button>
@@ -272,48 +298,54 @@ export default function ProductPage() {
             )}
 
             {inStock
-              ? <p className={`text-sm font-medium ${lowStock ? "text-[#E8A84C]" : "text-green-600"}`}>
+              ? <p className={`text-sm font-medium font-cormorant ${lowStock ? colors.lowStock : colors.inStock}`}>
                   {lowStock ? `⚠ Only ${selectedVariant?.stock} left` : "✓ In Stock"}
                 </p>
-              : <p className="text-sm text-[#8C7B6B]">✗ Out of Stock</p>
+              : <p className="text-sm text-[#666666] font-cormorant">✗ Out of Stock</p>
             }
 
             {cartState === "error" && cartError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm font-cormorant">
                 {cartError}
               </div>
             )}
 
             <div className="flex gap-4 items-stretch">
-              <div className="flex border border-[#E8E0D4]">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-12 h-12 flex items-center justify-center text-[#8C7B6B] hover:text-[#2C1F14] transition-colors text-lg border-r border-[#E8E0D4]">
+              <div className={`flex border ${colors.border} font-cormorant`}>
+                <button 
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className={`w-12 h-12 flex items-center justify-center text-[#666666] ${colors.hover} transition-colors text-lg border-r ${colors.border}`}
+                  aria-label="Decrease quantity"
+                >
                   −
                 </button>
-                <span className="w-12 flex items-center justify-center text-[#2C1F14] text-sm font-medium">
+                <span className="w-12 flex items-center justify-center text-black text-sm font-medium">
                   {quantity}
                 </span>
                 <button
                   onClick={() => setQuantity(Math.min(selectedVariant?.stock ?? 1, quantity + 1))}
-                  className="w-12 h-12 flex items-center justify-center text-[#8C7B6B] hover:text-[#2C1F14] transition-colors text-lg border-l border-[#E8E0D4]">
+                  className={`w-12 h-12 flex items-center justify-center text-[#666666] ${colors.hover} transition-colors text-lg border-l ${colors.border}`}
+                  aria-label="Increase quantity"
+                >
                   +
                 </button>
               </div>
 
-              <button onClick={handleAddToCart}
+              <button 
+                onClick={handleAddToCart}
                 disabled={!inStock || cartState === "loading"}
-                className={`flex-1 h-12 px-6 flex items-center justify-center gap-2 text-xs tracking-[0.12em] uppercase font-medium transition-all ${
+                className={`flex-1 h-12 px-6 flex items-center justify-center gap-2 text-xs tracking-[0.12em] uppercase font-medium transition-all font-cormorant ${
                   cartState === "added"
-                    ? "bg-[#2A6B3C] text-white"
+                    ? `${colors.buttonAdded} text-white`
                     : cartState === "loading"
-                      ? "bg-[#B8965A]/60 text-[#2C1F14] cursor-not-allowed"
+                      ? "bg-black/60 text-white cursor-not-allowed"
                       : inStock
-                        ? "bg-[#B8965A] text-[#2C1F14] hover:bg-[#D4AF6E]"
-                        : "bg-[#E8E0D4] text-[#C4B5A5] cursor-not-allowed"
+                        ? `${colors.buttonBg} text-white ${colors.buttonHover}`
+                        : "bg-black/10 text-[#666666] cursor-not-allowed"
                 }`}>
                 {cartState === "loading" ? (
                   <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-[#2C1F14] border-t-transparent rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     Adding…
                   </span>
                 ) : cartState === "added" ? (
@@ -321,7 +353,7 @@ export default function ProductPage() {
                 ) : inStock ? (
                   <>
                     Add to Cart
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                       <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
                       <line x1="3" y1="6" x2="21" y2="6"/>
                     </svg>
@@ -331,22 +363,24 @@ export default function ProductPage() {
             </div>
 
             {inStock && (
-              <Link href="/checkout"
-                className="block w-full py-3 text-center text-xs tracking-[0.12em] uppercase border border-[#2C1F14] text-[#2C1F14] hover:bg-[#2C1F14] hover:text-[#FAF8F5] transition-colors">
+              <Link 
+                href="/checkout"
+                className={`block w-full py-3 text-center text-xs tracking-[0.12em] uppercase border border-black text-black ${colors.buttonHover} bg-white transition-colors font-cormorant`}
+              >
                 Buy Now
               </Link>
             )}
 
             {selectedVariant && (
-              <div className="grid grid-cols-3 gap-4 p-4 bg-[#F5F2ED] border border-[#E8E0D4]">
+              <div className={`grid grid-cols-3 gap-4 p-4 ${colors.bgAlt} border ${colors.border} font-cormorant`}>
                 {[
                   ["Density",   selectedVariant.density  ?? "—"],
                   ["Lace Type", selectedVariant.laceType ?? "—"],
                   ["Cap Size",  selectedVariant.capSize  ?? "—"],
                 ].map(([label, val]) => (
                   <div key={label} className="text-center">
-                    <div className="text-[0.68rem] tracking-[0.1em] uppercase text-[#8C7B6B] mb-1">{label}</div>
-                    <div className="text-[#2C1F14] font-medium text-sm">{val}</div>
+                    <div className="text-[0.68rem] tracking-[0.1em] uppercase text-[#666666] mb-1">{label}</div>
+                    <div className="text-black font-medium text-sm">{val}</div>
                   </div>
                 ))}
               </div>
@@ -359,7 +393,7 @@ export default function ProductPage() {
                 ["✦",  "100% virgin human hair guaranteed"],
                 ["🔒", "Secure checkout via PayFast"],
               ].map(([icon, text]) => (
-                <div key={text as string} className="flex items-center gap-3 text-sm text-[#8C7B6B]">
+                <div key={text as string} className="flex items-center gap-3 text-sm text-[#666666] font-cormorant">
                   <span className="text-lg">{icon}</span>
                   <span>{text}</span>
                 </div>
@@ -369,14 +403,16 @@ export default function ProductPage() {
         </div>
 
         {/* ── TABS ─────────────────────────────────────────── */}
-        <div className="border-t border-[#E8E0D4] pt-12 pb-16">
-          <div className="flex border-b border-[#E8E0D4] mb-8">
+        <div className={`border-t ${colors.border} pt-12 pb-16`}>
+          <div className={`flex border-b ${colors.border} mb-8`}>
             {(["description", "details", "reviews"] as const).map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 text-xs tracking-[0.12em] uppercase transition-all border-b-2 -mb-px ${
+              <button 
+                key={tab} 
+                onClick={() => setActiveTab(tab)}
+                className={`px-6 py-3 text-xs tracking-[0.12em] uppercase transition-all border-b-2 -mb-px font-cormorant ${
                   activeTab === tab
-                    ? "text-[#B8965A] border-[#B8965A] font-medium"
-                    : "text-[#8C7B6B] border-transparent hover:text-[#2C1F14]"
+                    ? "text-black border-black font-medium"
+                    : "text-[#666666] border-transparent hover:text-black"
                 }`}>
                 {tab}
                 {tab === "reviews" && <span className="ml-1">({product.reviewCount})</span>}
@@ -387,13 +423,13 @@ export default function ProductPage() {
           {activeTab === "description" && (
             <div className="max-w-3xl space-y-4">
               {product.description.split("\n").filter(Boolean).map((para, i) => (
-                <p key={i} className="text-[0.95rem] text-[#8C7B6B] leading-relaxed">{para.trim()}</p>
+                <p key={i} className="text-[0.95rem] text-[#666666] leading-relaxed font-cormorant font-light">{para.trim()}</p>
               ))}
             </div>
           )}
 
           {activeTab === "details" && selectedVariant && (
-            <div className="max-w-2xl divide-y divide-[#E8E0D4]">
+            <div className={`max-w-2xl divide-y ${colors.border} font-cormorant`}>
               {[
                 ["Hair Type",       "100% Virgin Human Hair"],
                 ["Lace Type",       selectedVariant.laceType ?? "—"],
@@ -406,8 +442,8 @@ export default function ProductPage() {
                 ["SKU",             selectedVariant.sku],
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between py-3 text-sm">
-                  <span className="text-[#8C7B6B]">{label}</span>
-                  <span className="text-[#2C1F14] font-medium">{val}</span>
+                  <span className="text-[#666666]">{label}</span>
+                  <span className="text-black font-medium">{val}</span>
                 </div>
               ))}
             </div>
@@ -419,7 +455,7 @@ export default function ProductPage() {
               {!showReviewForm ? (
                 <button
                   onClick={() => setShowReviewForm(true)}
-                  className="mb-6 bg-[#B8965A] hover:bg-[#D4AF6E] text-[#2C1F14] px-6 py-3 text-xs tracking-widest uppercase font-medium transition-colors"
+                  className={`mb-6 ${colors.buttonBg} ${colors.buttonHover} text-white px-6 py-3 text-xs tracking-widest uppercase font-medium transition-colors font-cormorant`}
                 >
                   Write a Review
                 </button>
@@ -428,7 +464,7 @@ export default function ProductPage() {
                   <ReviewForm slug={slug} onSuccess={handleReviewSuccess} />
                   <button
                     onClick={() => setShowReviewForm(false)}
-                    className="mt-3 text-xs text-[#8C7B6B] hover:text-[#2C1F14] underline"
+                    className="mt-3 text-xs text-[#666666] hover:text-black underline font-cormorant"
                   >
                     Cancel
                   </button>
@@ -438,11 +474,11 @@ export default function ProductPage() {
               {product.reviews && product.reviews.length > 0 ? (
                 <>
                   {avgRating && (
-                    <div className="flex gap-8 items-center p-6 bg-[#F5F2ED] border border-[#E8E0D4] mb-8">
+                    <div className={`flex gap-8 items-center p-6 ${colors.bgAlt} border ${colors.border} mb-8`}>
                       <div className="text-center">
-                        <div className="font-serif text-5xl text-[#B8965A] leading-none">{avgRating.toFixed(1)}</div>
+                        <div className="font-playfair text-5xl text-black font-semibold leading-none">{avgRating.toFixed(1)}</div>
                         <Stars rating={avgRating} size="lg" />
-                        <div className="text-xs text-[#8C7B6B] mt-1">{product.reviewCount} reviews</div>
+                        <div className="text-xs text-[#666666] mt-1 font-cormorant">{product.reviewCount} reviews</div>
                       </div>
                       <div className="flex-1 space-y-1.5">
                         {[5, 4, 3, 2, 1].map((star) => {
@@ -450,12 +486,12 @@ export default function ProductPage() {
                           const pct   = (count / product.reviews.length) * 100;
                           return (
                             <div key={star} className="flex items-center gap-3">
-                              <span className="text-xs text-[#8C7B6B] w-3 text-right">{star}</span>
-                              <span className="text-[#B8965A] text-xs">★</span>
-                              <div className="flex-1 h-1.5 bg-[#E8E0D4] rounded-full overflow-hidden">
-                                <div className="h-full bg-[#B8965A] rounded-full" style={{ width: `${pct}%` }} />
+                              <span className="text-xs text-[#666666] w-3 text-right font-cormorant">{star}</span>
+                              <span className="text-black text-xs">★</span>
+                              <div className="flex-1 h-1.5 bg-black/10 rounded-full overflow-hidden">
+                                <div className="h-full bg-black rounded-full" style={{ width: `${pct}%` }} />
                               </div>
-                              <span className="text-xs text-[#8C7B6B] w-5">{count}</span>
+                              <span className="text-xs text-[#666666] w-5 font-cormorant">{count}</span>
                             </div>
                           );
                         })}
@@ -464,30 +500,30 @@ export default function ProductPage() {
                   )}
                   <div className="space-y-6">
                     {product.reviews.map((review: any) => (
-                      <div key={review.id} className="pb-6 border-b border-[#E8E0D4] last:border-0">
+                      <div key={review.id} className={`pb-6 border-b ${colors.border} last:border-0`}>
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-[#2C1F14]">{review.user?.name}</span>
+                              <span className="font-medium text-black font-playfair">{review.user?.name}</span>
                               {review.verified && (
-                                <span className="text-[0.65rem] bg-[#B8965A]/10 text-[#B8965A] px-2 py-0.5 tracking-wide">
+                                <span className="text-[0.65rem] bg-black/10 text-black px-2 py-0.5 tracking-wide font-cormorant">
                                   Verified
                                 </span>
                               )}
                             </div>
                             <Stars rating={review.rating} />
                           </div>
-                          <time className="text-xs text-[#8C7B6B]">
+                          <time className="text-xs text-[#666666] font-cormorant">
                             {new Date(review.createdAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}
                           </time>
                         </div>
-                        <p className="text-[0.88rem] text-[#8C7B6B] leading-relaxed">{review.comment}</p>
+                        <p className="text-[0.88rem] text-[#666666] leading-relaxed font-cormorant font-light">{review.comment}</p>
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
-                <p className="text-[#8C7B6B] text-sm">No reviews yet. Be the first to review this product.</p>
+                <p className="text-[#666666] text-sm font-cormorant">No reviews yet. Be the first to review this product.</p>
               )}
             </div>
           )}

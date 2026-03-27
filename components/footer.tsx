@@ -24,61 +24,74 @@ const LINKS = {
 };
 
 export default function Footer() {
-  // Light theme color palette (consistent with Navbar)
+  // ── COLOR PALETTE (Cream / Black / White) ───────────────
   const colors = {
     bg: "bg-white",
-    text: "text-[#1A1A1A]",
-    textMuted: "text-[#666666]",
-    textLight: "text-[#888888]",
-    accent: "text-[#C9A84C]",
-    accentHover: "hover:text-[#B8963C]",
-    border: "border-[#E5E5E5]",
-    borderAccent: "border-[#C9A84C]/20",
-    divider: "from-transparent via-[#C9A84C]/30 to-transparent",
+    bgCream: "bg-[#F1F1F1]",
+    text: "text-black",
+    textMuted: "text-[#333333]",
+    textLight: "text-[#666666]",
+    border: "border-black/10",
+    borderHover: "hover:border-black",
+    hover: "hover:text-black",
+    divider: "from-transparent via-black/20 to-transparent",
   };
 
   return (
     <footer className={`${colors.bg} border-t ${colors.border} pt-16 pb-8`}>
       <div className="max-w-screen-xl mx-auto px-6 md:px-12">
 
-        {/* Gold divider top */}
+        {/* ── Subtle Divider ─────────────────────────────── */}
         <div className={`h-px bg-gradient-to-r ${colors.divider} mb-12`} />
 
-        {/* Main grid */}
+        {/* ── Main Grid ──────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
 
-          {/* Brand */}
+          {/* ── Brand Column ─────────────────────────────── */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="font-serif text-2xl tracking-[0.2em] text-[#1A1A1A] hover:text-[#C9A84C] transition-colors block">
-              Nova<span className={colors.accent}>a</span>
+            <Link 
+              href="/" 
+              className="font-playfair text-3xl font-semibold tracking-[0.15em]  text-black hover:opacity-70 transition-opacity block"
+            >
+              novaa
             </Link>
-            <p className={`${colors.textMuted} text-sm leading-relaxed mt-4 max-w-[220px]`}>
+            <p className={`${colors.textMuted} text-base leading-relaxed mt-4 max-w-[220px] font-cormorant font-light`}>
               Premium human hair wigs crafted for the woman who commands every room she enters.
             </p>
 
             {/* Socials */}
             <div className="flex gap-3 mt-6">
               {[
-                { label: "Insta", href: "https://instagram.com/novaa.co.za" },
+                { label: "IG", href: "https://instagram.com/novaa.co.za" },
                 { label: "FB", href: "https://facebook.com/Novaa" },
               ].map(({ label, href }) => (
-                <a key={label} href={href} target="_blank" rel="noreferrer"
-                  className={`w-9 h-9 border ${colors.border} hover:border-[#C9A84C] flex items-center justify-center ${colors.textMuted} hover:text-[#C9A84C] text-xs tracking-wider transition-colors duration-200`}>
+                <a 
+                  key={label} 
+                  href={href} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  aria-label={label}
+                  className={`w-10 h-10 border ${colors.border} ${colors.borderHover} flex items-center justify-center ${colors.textMuted} ${colors.hover} text-xs tracking-[0.15em] uppercase transition-colors duration-200 font-cormorant`}
+                >
                   {label}
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Link columns */}
+          {/* ── Link Columns ─────────────────────────────── */}
           {Object.entries(LINKS).map(([title, links]) => (
             <div key={title}>
-              <p className={`${colors.accent} text-xs tracking-[0.18em] uppercase font-medium mb-5`}>{title}</p>
+              <p className={`${colors.text} text-xs tracking-[0.25em] uppercase font-cormorant font-medium mb-5`}>
+                {title}
+              </p>
               <ul className="space-y-3">
                 {links.map(([label, href]) => (
                   <li key={label}>
-                    <Link href={href}
-                      className={`${colors.textMuted} hover:text-[#1A1A1A] text-sm transition-colors duration-200`}>
+                    <Link 
+                      href={href}
+                      className={`${colors.textMuted} ${colors.hover} text-base transition-colors duration-200 font-cormorant font-light`}
+                    >
                       {label}
                     </Link>
                   </li>
@@ -88,16 +101,22 @@ export default function Footer() {
           ))}
         </div>
 
-        {/* Bottom bar */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-6 border-t border-[#E5E5E5]">
-          <p className={`${colors.textLight} text-xs`}>
+        {/* ── Bottom Bar ─────────────────────────────────── */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-6 border-t border-black/10">
+          <p className={`${colors.textLight} text-xs font-cormorant`}>
             © {new Date().getFullYear()} Novaa. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <Link href="/privacy" className={`${colors.textLight} hover:text-[#1A1A1A] text-xs transition-colors`}>
+            <Link 
+              href="/privacy" 
+              className={`${colors.textLight} ${colors.hover} text-xs transition-colors font-cormorant`}
+            >
               Privacy Policy
             </Link>
-            <Link href="/terms" className={`${colors.textLight} hover:text-[#1A1A1A] text-xs transition-colors`}>
+            <Link 
+              href="/terms" 
+              className={`${colors.textLight} ${colors.hover} text-xs transition-colors font-cormorant`}
+            >
               Terms of Service
             </Link>
           </div>

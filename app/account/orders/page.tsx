@@ -1,20 +1,48 @@
-"use client";
 // app/account/orders/page.tsx
+"use client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { ordersApi, Order } from "@/lib/api";
 
+// ─── HELPERS ──────────────────────────────────────────────────
 function formatPrice(cents: number) {
   return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}`;
 }
 
+// ── COLOR PALETTE (Cream / Black / White) ─────────────────
+const colors = {
+  bg: "bg-[#F1F1F1]",
+  bgCard: "bg-white",
+  bgAlt: "bg-[#F1F1F1]",
+  
+  text: "text-black",
+  textMuted: "text-[#333333]",
+  textLight: "text-[#666666]",
+  
+  border: "border-black/10",
+  borderLight: "border-black/5",
+  borderHover: "hover:border-black",
+  
+  buttonPrimary: "bg-black hover:bg-[#333333] text-white",
+  buttonDisabled: "opacity-40 cursor-not-allowed",
+  
+  // Accessible status badge colors (light bg + dark text)
+  statusPending: "bg-yellow-50 text-yellow-800 border-yellow-200",
+  statusPaid: "bg-blue-50 text-blue-800 border-blue-200",
+  statusShipped: "bg-purple-50 text-purple-800 border-purple-200",
+  statusDelivered: "bg-green-50 text-green-800 border-green-200",
+  statusCancelled: "bg-red-50 text-red-800 border-red-200",
+  statusDefault: "bg-[#F1F1F1] text-[#666666] border-black/10",
+};
+
 const STATUS_STYLES: Record<string, string> = {
-  PENDING:   "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  PAID:      "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  SHIPPED:   "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  DELIVERED: "bg-green-500/10 text-green-400 border-green-500/20",
-  CANCELLED: "bg-red-500/10 text-red-400 border-red-500/20",
+  PENDING:   colors.statusPending,
+  PAID:      colors.statusPaid,
+  SHIPPED:   colors.statusShipped,
+  DELIVERED: colors.statusDelivered,
+  CANCELLED: colors.statusCancelled,
 };
 
 export default function AccountOrdersPage() {
@@ -34,19 +62,27 @@ export default function AccountOrdersPage() {
   }, [token, page]);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] pt-24 pb-16">
+    <div className={`min-h-screen ${colors.bg} pt-24 pb-16 font-cormorant`}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        
         {/* Header */}
-        <div className="mb-8 pb-6 border-b border-white/[0.06]">
-          <p className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase mb-1">My Account</p>
-          <h1 className="font-serif text-4xl text-[#F5F0E8] font-light">Order History</h1>
+        <div className={`mb-8 pb-6 border-b ${colors.border}`}>
+          <p className={`${colors.text} text-xs tracking-[0.2em] uppercase mb-1 font-cormorant font-medium`}>My Account</p>
+          <h1 className="font-playfair text-4xl text-black font-semibold">Order History</h1>
         </div>
 
         {/* Account nav */}
-        <div className="flex gap-6 mb-8 text-xs tracking-widest uppercase border-b border-white/[0.06] pb-4">
+        <div className={`flex gap-6 mb-8 text-xs tracking-widest uppercase border-b ${colors.border} pb-4`}>
           {[["Orders", "/account/orders"], ["Profile", "/account/profile"]].map(([label, href]) => (
-            <Link key={label} href={href}
-              className={`pb-4 -mb-4 border-b-2 transition-colors ${href === "/account/orders" ? "border-[#C9A84C] text-[#C9A84C]" : "border-transparent text-[#6B6B6B] hover:text-[#F5F0E8]"}`}>
+            <Link 
+              key={label} 
+              href={href}
+              className={`pb-4 -mb-4 border-b-2 transition-colors font-cormorant ${
+                href === "/account/orders"
+                  ? "border-black text-black font-medium"
+                  : `border-transparent ${colors.textLight} hover:${colors.text}`
+              }`}
+            >
               {label}
             </Link>
           ))}
@@ -54,44 +90,58 @@ export default function AccountOrdersPage() {
 
         {loading ? (
           <div className="space-y-4">
-            {[1, 2, 3].map(i => <div key={i} className="h-24 bg-[#111111] animate-pulse" />)}
+            {[1, 2, 3].map(i => (
+              <div key={i} className={`h-24 ${colors.bgCard} border ${colors.border} animate-pulse rounded-sm`} />
+            ))}
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-[#6B6B6B] mb-6">No orders yet</p>
-            <Link href="/shop" className="bg-[#C9A84C] text-[#0A0A0A] px-8 py-3 text-xs tracking-widest uppercase font-medium hover:bg-[#E2C97E] transition-colors">
+            <p className={`${colors.textLight} mb-6 font-cormorant`}>No orders yet</p>
+            <Link 
+              href="/shop" 
+              className={`${colors.buttonPrimary} px-8 py-3 text-xs tracking-widest uppercase font-medium transition-colors font-cormorant rounded-sm`}
+            >
               Start Shopping
             </Link>
           </div>
         ) : (
           <div className="space-y-4">
             {orders.map((order) => (
-              <Link key={order.id} href={`/account/orders/${order.id}`}
-                className="block bg-[#111111] border border-white/[0.06] p-5 hover:border-[#C9A84C]/30 transition-colors group">
+              <Link 
+                key={order.id} 
+                href={`/account/orders/${order.id}`}
+                className={`block ${colors.bgCard} border ${colors.border} p-5 ${colors.borderHover} transition-colors group rounded-sm`}
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <span className="text-[#F5F0E8] text-sm font-medium font-mono">
+                      <span className={`${colors.text} text-sm font-medium font-mono`}>
                         #{order.id.slice(0, 8).toUpperCase()}
                       </span>
-                      <span className={`text-xs px-2 py-0.5 border ${STATUS_STYLES[order.status] ?? "bg-white/5 text-[#6B6B6B] border-white/10"}`}>
+                      <span className={`text-xs px-2 py-0.5 border font-cormorant rounded-sm ${
+                        STATUS_STYLES[order.status] ?? colors.statusDefault
+                      }`}>
                         {order.status}
                       </span>
                     </div>
 
-                    <p className="text-[#6B6B6B] text-xs mb-2">
+                    <p className={`${colors.textLight} text-xs mb-2 font-cormorant`}>
                       {new Date(order.createdAt).toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })}
                       {" · "}{order.items?.length ?? 0} item{(order.items?.length ?? 0) !== 1 ? "s" : ""}
                     </p>
 
                     {order.trackingNumber && (
-                      <p className="text-[#C9A84C] text-xs">Tracking: {order.trackingNumber}</p>
+                      <p className={`${colors.text} text-xs font-cormorant`}>
+                        Tracking: <span className="font-mono">{order.trackingNumber}</span>
+                      </p>
                     )}
                   </div>
 
                   <div className="text-right flex-shrink-0">
-                    <p className="font-serif text-xl text-[#C9A84C]">{formatPrice(order.total)}</p>
-                    <p className="text-[#6B6B6B] text-xs mt-1 group-hover:text-[#C9A84C] transition-colors">View →</p>
+                    <p className="font-playfair text-xl text-black font-semibold">{formatPrice(order.total)}</p>
+                    <p className={`${colors.textLight} text-xs mt-1 group-hover:${colors.text} transition-colors font-cormorant`}>
+                      View →
+                    </p>
                   </div>
                 </div>
               </Link>
@@ -101,8 +151,15 @@ export default function AccountOrdersPage() {
             {totalPages > 1 && (
               <div className="flex justify-center gap-2 pt-6">
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button key={p} onClick={() => setPage(p)}
-                    className={`w-9 h-9 text-sm border transition-colors ${p === page ? "border-[#C9A84C] text-[#C9A84C]" : "border-white/[0.06] text-[#6B6B6B] hover:border-white/20"}`}>
+                  <button 
+                    key={p} 
+                    onClick={() => setPage(p)}
+                    className={`w-9 h-9 text-sm border transition-colors font-cormorant rounded-sm ${
+                      p === page 
+                        ? "border-black text-black font-medium" 
+                        : `${colors.border} ${colors.textLight} ${colors.borderHover} hover:${colors.text}`
+                    }`}
+                  >
                     {p}
                   </button>
                 ))}
