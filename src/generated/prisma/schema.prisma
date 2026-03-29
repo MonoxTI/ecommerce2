@@ -1,0 +1,311 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma" // adjust to your output path
+}
+
+datasource db {
+  provider = "postgresql"
+  // ← no url here anymore
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+// ─── USERS & AUTH ──────────────────────────────────────────
+
+model User {
+  id       String  @id @default(uuid())
+  name     String
+  email    String  @unique
+  password String
+  phone    String
+  role     Role    @default(CUSTOMER)
+  isActive Boolean @default(true) // 👈 Added for auth logic
+
+  orders        Order[]
+  addresses     Address[]
+  reviews       Review[]
+  cart          Cart?
+  refreshTokens RefreshToken[] // 👈 Relation for JWT rotation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@map("users")
+}
+
+// 👇 NEW: RefreshToken model for JWT rotation
+model RefreshToken {
+  id     String @id @default(uuid())
+  token  String @unique // Opaque random string (64 hex chars)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ─── ADDRESSES ─────────────────────────────────────────────
+
+model Address {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  fullName   String
+  phone      String
+  street     String
+  city       String
+  province   String
+  postalCode String
+  country    String
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// ─── CATEGORIES & PRODUCTS ─────────────────────────────────
+
+model Category {
+  id   String @id @default(uuid())
+  name String
+  slug String @unique
+
+  products Product[]
+
+  @@index([slug])
+  @@map("categories")
+}
+
+model Product {
+  id          String  @id @default(uuid())
+  name        String
+  slug        String  @unique
+  description String
+  brand       String?
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  images   ProductImage[]
+  variants ProductVariant[]
+  reviews  Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String @id @default(uuid())
+  productId String
+  url       String
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model ProductVariant {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  sku   String @unique
+  price Int // 👈 Changed from Float: store price in CENTS ($249.99 = 24999)
+  stock Int
+
+  // Wig-specific attributes
+  length   String? // "18", "20", "22" (inches)
+  color    String? // "Jet Black", "Chocolate Brown"
+  density  String? // "150%", "180%", "200%"
+  laceType String? // "HD Lace", "Transparent", "4x4", "13x4", "Full Lace"
+  capSize  String? // "Small", "Medium", "Large", "Average"
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@index([productId])
+  @@index([sku])
+  @@map("product_variants")
+}
+
+// ─── CART ──────────────────────────────────────────────────
+
+model Cart {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id String @id @default(uuid())
+
+  cartId String
+  cart   Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  quantity Int
+
+  @@unique([cartId, variantId]) // Prevent duplicate items
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+// ─── ORDERS & PAYMENTS ─────────────────────────────────────
+
+model Order {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  status OrderStatus @default(PENDING)
+  total  Int // 👈 Changed from Float: total in CENTS
+
+  items   OrderItem[]
+  payment Payment?
+
+  addressId String
+  address   Address @relation(fields: [addressId], references: [id])
+
+  // 👇 Added: Order tracking fields
+  trackingNumber String?
+  trackingUrl    String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id String @id @default(uuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+
+  quantity Int
+  price    Int // 👈 Changed from Float: snapshot price in CENTS at time of purchase
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model Payment {
+  id      String @id @default(uuid())
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  provider      String // "stripe", "paypal", etc.
+  transactionId String? // Stripe payment_intent_id or PayPal order_id
+  status        PaymentStatus
+  amount        Int // 👈 Changed from Float: amount in CENTS
+  currency      String        @default("ZAR") // Or "USD" based on your market
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([transactionId])
+  @@map("payments")
+}
+
+// ─── REVIEWS ───────────────────────────────────────────────
+
+model Review {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  rating  Int // 1-5 stars
+  comment String?
+  images  String[] // User-uploaded review photos
+
+  verified Boolean @default(false) // True if user actually purchased this product
+  helpful  Int     @default(0) // Count of "helpful" votes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([userId])
+  @@map("reviews")
+}
+
+// ─── COUPONS & PROMOTIONS ──────────────────────────────────
+
+model Coupon {
+  id       String       @id @default(uuid())
+  code     String       @unique
+  discount Int // 👈 Changed from Float: discount in CENTS (or use percentageType)
+  type     DiscountType @default(FIXED) // FIXED or PERCENTAGE
+  active   Boolean      @default(true)
+
+  minOrder     Int? // Minimum order total (in cents) to apply coupon
+  maxUses      Int? // Max times coupon can be used overall
+  usedCount    Int  @default(0)
+  perUserLimit Int? // Max times one user can use this coupon
+
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([code])
+  @@map("coupons")
+}
+
+enum DiscountType {
+  FIXED // e.g., R100 off
+  PERCENTAGE // e.g., 10% off
+}

@@ -2,13 +2,13 @@
 // Payment API handlers.
 
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/DB/prisma";
 import { getCurrentUser } from "@/lib/auth/JWT";
 import {
   ok,
   badRequest,
   unauthorized,
-  forbidden,
   notFound,
 } from "@/lib/api/response";
 import {
@@ -18,6 +18,17 @@ import {
   PAYFAST_CONFIG,
   type PayFastITN,
 } from "@/lib/payments/payfast";
+
+// ─── TYPES ───────────────────────────────────────────────────
+// FIX: Replace `order: any` with a proper Prisma type so we get full
+// type-safety and autocomplete throughout processITN.
+
+type OrderWithRelations = Prisma.OrderGetPayload<{
+  include: {
+    payment: true;
+    items:   true;
+  };
+}>;
 
 // ─── INITIATE PAYMENT ────────────────────────────────────────
 // POST /api/payments/initiate
@@ -62,7 +73,9 @@ export async function handleInitiatePayment(req: NextRequest) {
   // Build the signed PayFast form
   const { fields, actionUrl } = buildPayFastForm({
     orderId:     order.id,
-    amountCents: order.total,
+    // FIX: Prisma returns Decimal for numeric fields, not a plain number.
+    // Number() coerces it safely to a JS number before arithmetic.
+    amountCents: Number(order.total),
     buyerName:   order.user.name,
     buyerEmail:  order.user.email,
   });
@@ -82,7 +95,7 @@ export async function handleInitiatePayment(req: NextRequest) {
 //   - Verify signature + IP whitelist + PayFast server confirmation
 //   - Verify amount matches our order (prevent partial payment attacks)
 //   - Verify merchant ID matches our config
-//   - Always return HTTP 200 — PayFast retries on non-200
+//   - Always return HTTP 200 — PayFast retries on non-200 for up to 6 hours
 //   - Do NOT trust any data without verification
 
 export async function handleITN(req: NextRequest) {
@@ -94,14 +107,14 @@ export async function handleITN(req: NextRequest) {
 
   if (!isValidPayFastIP(ip)) {
     console.warn(`[PayFast ITN] Rejected request from unknown IP: ${ip}`);
-    // Return 200 anyway — we don't want PayFast to keep retrying a spoofed request
+    // Return 200 anyway — prevents PayFast retrying a spoofed request
     return new Response("IP not whitelisted", { status: 200 });
   }
 
   // ── 2. Parse raw body ─────────────────────────────────────
   // We need the raw body string for:
   //   a) PayFast server-side confirmation POST
-  //   b) Signature verification (order-sensitive)
+  //   b) Signature verification (field order is significant)
   const rawBody = await req.text();
   if (!rawBody) {
     console.warn("[PayFast ITN] Empty body received");
@@ -112,7 +125,10 @@ export async function handleITN(req: NextRequest) {
   const params = new URLSearchParams(rawBody);
   const payload = Object.fromEntries(params.entries()) as unknown as PayFastITN;
 
-  console.log(`[PayFast ITN] Received — status: ${payload.payment_status}, m_payment_id: ${payload.m_payment_id}`);
+  console.log(
+    `[PayFast ITN] Received — status: ${payload.payment_status}, ` +
+    `m_payment_id: ${payload.m_payment_id}`
+  );
 
   // ── 3. Verify ITN signature + server confirmation ─────────
   const { valid, reason } = await verifyITN(payload, rawBody);
@@ -141,9 +157,10 @@ export async function handleITN(req: NextRequest) {
   }
 
   // ── 6. Verify amount matches ──────────────────────────────
-  // This prevents partial payment attacks where someone pays less
+  // Prevents partial payment attacks where someone pays less than the order total.
+  // FIX: Prisma returns Decimal — wrap in Number() before comparing to itnAmountCents.
   const itnAmountCents = Math.round(parseFloat(payload.amount_gross) * 100);
-  if (itnAmountCents !== order.total) {
+  if (itnAmountCents !== Number(order.total)) {
     console.error(
       `[PayFast ITN] Amount mismatch for order ${orderId}: ` +
       `expected ${order.total} cents, got ${itnAmountCents} cents`
@@ -160,51 +177,51 @@ export async function handleITN(req: NextRequest) {
 
 // ─── PROCESS ITN ─────────────────────────────────────────────
 
-async function processITN(payload: PayFastITN, order: any) {
+async function processITN(payload: PayFastITN, order: OrderWithRelations) {
   const orderId = order.id;
 
   try {
     switch (payload.payment_status) {
 
       case "COMPLETE": {
-        // Guard: don't process if already paid (duplicate ITN)
-        if (order.payment?.status === "SUCCESS") {
-          console.log(`[PayFast ITN] Order ${orderId} already marked as paid — skipping`);
-          return;
-        }
-
-        await db.$transaction([
-          // Update payment record
+        // FIX: In-memory guard is not enough — PayFast can send duplicate ITNs
+        // hours apart. Use a DB-level where clause so the update is a no-op if
+        // the payment was already marked SUCCESS by a previous ITN.
+        const [updated] = await db.$transaction([
           db.payment.updateMany({
-            where: { orderId },
+            where: {
+              orderId,
+              status: { not: "SUCCESS" }, // idempotent — skips if already paid
+            },
             data: {
               status:        "SUCCESS",
               transactionId: payload.pf_payment_id,
             },
           }),
-          // Update order status
           db.order.update({
             where: { id: orderId },
             data:  { status: "PAID" },
           }),
         ]);
 
-        console.log(`[PayFast ITN] ✅ Order ${orderId} marked as PAID`);
-
-        // TODO: Send order confirmation email to customer
-        // await sendOrderConfirmationEmail(order.userId, orderId)
+        if (updated.count === 0) {
+          console.log(`[PayFast ITN] Order ${orderId} already PAID — duplicate ITN ignored`);
+        } else {
+          console.log(`[PayFast ITN] ✅ Order ${orderId} marked as PAID`);
+          // TODO: Send order confirmation email to customer
+          // await sendOrderConfirmationEmail(order.userId, orderId)
+        }
         break;
       }
 
       case "FAILED": {
         await db.$transaction(async (tx) => {
-          // Update payment record
           await tx.payment.updateMany({
             where: { orderId },
             data:  { status: "FAILED" },
           });
 
-          // Restore stock
+          // Restore stock for each item
           for (const item of order.items) {
             await tx.productVariant.update({
               where: { id: item.variantId },
@@ -212,12 +229,10 @@ async function processITN(payload: PayFastITN, order: any) {
             });
           }
 
-          // Keep order as PENDING so user can try again
-          // (don't change order status to allow retry)
+          // Keep order as PENDING so the user can retry payment
         });
 
         console.log(`[PayFast ITN] ❌ Payment FAILED for order ${orderId} — stock restored`);
-
         // TODO: Send payment failed email
         // await sendPaymentFailedEmail(order.userId, orderId)
         break;
@@ -230,7 +245,7 @@ async function processITN(payload: PayFastITN, order: any) {
             data:  { status: "CANCELLED" },
           });
 
-          // Restore stock
+          // Restore stock for each item
           for (const item of order.items) {
             await tx.productVariant.update({
               where: { id: item.variantId },
@@ -253,6 +268,6 @@ async function processITN(payload: PayFastITN, order: any) {
     }
   } catch (err) {
     console.error(`[PayFast ITN] DB update failed for order ${orderId}:`, err);
-    // Don't throw — we already returned 200 to PayFast
+    // Don't throw — handleITN has already returned 200 to PayFast
   }
 }

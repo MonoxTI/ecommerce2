@@ -1,29 +1,31 @@
-// lib/prisma.ts
+// lib/DB/prisma.ts
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import { PrismaNeon } from '@prisma/adapter-neon';
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-// Create PostgreSQL connection pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+// Create Neon adapter using the POOLED connection string
+// - DATABASE_URL  = pooled (with -pooler in hostname) → used at runtime
+// - DIRECT_URL    = direct (no -pooler)               → used for migrations only
+const adapter = new PrismaNeon({
+  connectionString: process.env.DATABASE_URL!,
 });
 
-// Create Prisma adapter for direct connection
-const adapter = new PrismaPg(pool);
+const prismaInstance =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    adapter,
+    log:
+      process.env.NODE_ENV === 'development'
+        ? ['query', 'error', 'warn']
+        : ['error'],
+  });
 
-// Instantiate PrismaClient with adapter
-const prismaInstance = new PrismaClient({
-  adapter,
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-});
-
-// ✅ Export as BOTH 'prisma' and 'db' for compatibility
-export const prisma = prismaInstance;
-export const db = prismaInstance; // 👈 Alias for auth code
-
-// Hot-reload fix for development
+// Hot-reload fix — prevents multiple PrismaClient instances in development
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prismaInstance;
 }
+
+// Export as both 'prisma' and 'db' for compatibility across your codebase
+export const prisma = prismaInstance;
+export const db = prismaInstance;

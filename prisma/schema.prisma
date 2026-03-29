@@ -1,12 +1,12 @@
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  output   = "../src/generated/prisma"  // adjust to your output path
 }
 
 datasource db {
   provider = "postgresql"
+  // ← no url here anymore
 }
-
 enum Role {
   ADMIN
   CUSTOMER

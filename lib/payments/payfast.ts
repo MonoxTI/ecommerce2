@@ -17,25 +17,39 @@
 // Test cards:
 //   Visa:       4000000000000002
 //   MasterCard: 5200000000000015
+//
+// Required env vars:
+//   PAYFAST_MERCHANT_ID
+//   PAYFAST_MERCHANT_KEY
+//   PAYFAST_PASSPHRASE
+//   PAYFAST_SANDBOX=true          ← controls sandbox vs live (NOT NODE_ENV)
+//   NEXT_PUBLIC_APP_URL
+//   STORE_NAME                    ← optional, defaults to "Store"
 
 import crypto from "crypto";
 
 // ─── CONFIG ──────────────────────────────────────────────────
+// FIX: Use PAYFAST_SANDBOX env var instead of NODE_ENV.
+// NODE_ENV=production is set on any production server — including staging —
+// so using it would send staging payments to the live PayFast URL.
+// PAYFAST_SANDBOX=true explicitly controls which environment to use.
 
 export const PAYFAST_CONFIG = {
   merchantId:  process.env.PAYFAST_MERCHANT_ID!,
   merchantKey: process.env.PAYFAST_MERCHANT_KEY!,
   passphrase:  process.env.PAYFAST_PASSPHRASE!,
   appUrl:      process.env.NEXT_PUBLIC_APP_URL!,
-  // Sandbox vs Live URL
-  processUrl:
-    process.env.NODE_ENV === "production"
-      ? "https://www.payfast.co.za/eng/process"
-      : "https://sandbox.payfast.co.za/eng/process",
-  validateUrl:
-    process.env.NODE_ENV === "production"
-      ? "https://www.payfast.co.za/eng/query/validate"
-      : "https://sandbox.payfast.co.za/eng/query/validate",
+  isSandbox:   process.env.PAYFAST_SANDBOX === "true",
+  get processUrl() {
+    return this.isSandbox
+      ? "https://sandbox.payfast.co.za/eng/process"
+      : "https://www.payfast.co.za/eng/process";
+  },
+  get validateUrl() {
+    return this.isSandbox
+      ? "https://sandbox.payfast.co.za/eng/query/validate"
+      : "https://www.payfast.co.za/eng/query/validate";
+  },
 };
 
 // ─── TYPES ───────────────────────────────────────────────────
@@ -75,9 +89,12 @@ export interface PayFastITN {
 }
 
 // ─── SIGNATURE ───────────────────────────────────────────────
-// PayFast signature = MD5 of all non-empty params as a query string
+// PayFast signature = MD5 of all non-empty params as a URL-encoded query string
 // with the passphrase appended at the end.
-// Order of fields matters — must match the order they were added.
+//
+// CRITICAL: Field ORDER matters — the signature is built from whatever order
+// the caller passes in. For outgoing payments (buildPayFastForm) we control
+// the order. For incoming ITNs (verifyITN) we must use the raw body order.
 
 export function buildPayFastSignature(
   data: Record<string, string>
@@ -90,10 +107,9 @@ export function buildPayFastSignature(
     )
     .join("&");
 
-  const stringToHash =
-    PAYFAST_CONFIG.passphrase
-      ? `${paramString}&passphrase=${encodeURIComponent(PAYFAST_CONFIG.passphrase.trim()).replace(/%20/g, "+")}`
-      : paramString;
+  const stringToHash = PAYFAST_CONFIG.passphrase
+    ? `${paramString}&passphrase=${encodeURIComponent(PAYFAST_CONFIG.passphrase.trim()).replace(/%20/g, "+")}`
+    : paramString;
 
   return crypto.createHash("md5").update(stringToHash).digest("hex");
 }
@@ -115,55 +131,87 @@ export function buildPayFastForm(params: {
   // Convert cents to rands with exactly 2 decimal places
   const amountRands = (params.amountCents / 100).toFixed(2);
 
-  // Build fields in the exact order PayFast expects
+  const storeName = process.env.STORE_NAME ?? "Store";
+
+  // Build fields in the exact order PayFast expects.
+  // merchant_key must be IN the form POST but NOT in the signature.
   const fields: Record<string, string> = {
-    merchant_id:     PAYFAST_CONFIG.merchantId,
-    merchant_key:    PAYFAST_CONFIG.merchantKey,
-    return_url:      `${PAYFAST_CONFIG.appUrl}/checkout/success?orderId=${params.orderId}`,
-    cancel_url:      `${PAYFAST_CONFIG.appUrl}/checkout/cancelled?orderId=${params.orderId}`,
-    notify_url:      `${PAYFAST_CONFIG.appUrl}/api/payments/itn`,
-    name_first:      firstName,
-    name_last:       lastName,
-    email_address:   params.buyerEmail,
-    m_payment_id:    params.orderId,
-    amount:          amountRands,
-    item_name:       `WigStore Order`,
+    merchant_id:      PAYFAST_CONFIG.merchantId,
+    merchant_key:     PAYFAST_CONFIG.merchantKey,
+    return_url:       `${PAYFAST_CONFIG.appUrl}/checkout/success?orderId=${params.orderId}`,
+    cancel_url:       `${PAYFAST_CONFIG.appUrl}/checkout/cancelled?orderId=${params.orderId}`,
+    notify_url:       `${PAYFAST_CONFIG.appUrl}/api/payments/itn`,
+    name_first:       firstName,
+    name_last:        lastName,
+    email_address:    params.buyerEmail,
+    m_payment_id:     params.orderId,
+    amount:           amountRands,
+    item_name:        `${storeName} Order`,
     item_description: `Payment for order ${params.orderId.slice(0, 8).toUpperCase()}`,
-    custom_str1:     params.orderId, // echoed back in ITN
+    custom_str1:      params.orderId, // echoed back in ITN for reconciliation
   };
 
-  // Signature is built WITHOUT merchant_key
-  const { merchant_key, ...fieldsForSignature } = fields;
-  const signature = buildPayFastSignature(fieldsForSignature);
+  // FIX: Build signature by filtering merchant_key from the existing ordered
+  // entries — preserving insertion order — rather than spreading into a new
+  // object (which can silently reorder keys in some runtimes).
+  const signature = buildPayFastSignature(
+    Object.fromEntries(
+      Object.entries(fields).filter(([k]) => k !== "merchant_key")
+    )
+  );
 
   return {
-    fields:     { ...fields, signature } as PayFastFormFields,
-    actionUrl:  PAYFAST_CONFIG.processUrl,
+    fields:    { ...fields, signature } as PayFastFormFields,
+    actionUrl: PAYFAST_CONFIG.processUrl,
   };
 }
 
 // ─── VERIFY ITN ──────────────────────────────────────────────
 // Three-step verification as per PayFast docs:
-//   1. Verify signature
+//   1. Verify signature (using raw body to preserve field order)
 //   2. Confirm with PayFast server (server-to-server POST)
-//   3. Caller must verify merchant ID + amount match order
+//   3. Caller must verify merchant ID + amount match the stored order
 
 export async function verifyITN(
   payload: PayFastITN,
   rawBody: string
 ): Promise<{ valid: boolean; reason?: string }> {
-  // Step 1 — Signature verification
-  const { signature, ...rest } = payload;
-  const expected = buildPayFastSignature(rest as Record<string, string>);
 
-  if (signature !== expected) {
+  // Step 1 — Signature verification
+  //
+  // FIX: We must rebuild the param string from rawBody's original field order,
+  // NOT from the parsed object. Object.entries() on a parsed payload can
+  // reorder fields, producing a different MD5 than PayFast computed.
+  //
+  // We also must NOT use buildPayFastSignature() here because that function
+  // adds the passphrase via PAYFAST_CONFIG — but the rawBody already has the
+  // fields without a passphrase. We append the passphrase manually below.
+  const params = new URLSearchParams(rawBody);
+
+  let paramString = "";
+  for (const [key, value] of params.entries()) {
+    if (key === "signature") continue; // exclude signature from hash input
+    paramString += `${key}=${encodeURIComponent(value.trim()).replace(/%20/g, "+")}&`;
+  }
+
+  // Append passphrase and remove trailing "&"
+  if (PAYFAST_CONFIG.passphrase) {
+    paramString += `passphrase=${encodeURIComponent(PAYFAST_CONFIG.passphrase.trim()).replace(/%20/g, "+")}`;
+  } else {
+    paramString = paramString.slice(0, -1); // remove trailing &
+  }
+
+  const expected = crypto.createHash("md5").update(paramString).digest("hex");
+
+  if (payload.signature !== expected) {
     return {
       valid:  false,
-      reason: `Signature mismatch — expected ${expected}, got ${signature}`,
+      reason: `Signature mismatch — expected ${expected}, got ${payload.signature}`,
     };
   }
 
   // Step 2 — Server-side confirmation
+  // PayFast verifies the ITN data is genuine by echoing it back
   const confirmed = await confirmWithPayFast(rawBody);
   if (!confirmed) {
     return {
@@ -191,11 +239,11 @@ async function confirmWithPayFast(rawBody: string): Promise<boolean> {
 }
 
 // ─── IP WHITELIST ────────────────────────────────────────────
-// PayFast only sends ITN from these IP ranges.
-// In development, all IPs are allowed.
+// PayFast only sends ITN requests from these IPs.
+// In non-production environments all IPs are allowed (for ngrok/local testing).
 
 const PAYFAST_IP_RANGES = new Set([
-  // Production
+  // Production PayFast servers
   "197.97.145.144", "197.97.145.145", "197.97.145.146", "197.97.145.147",
   "197.97.145.148", "197.97.145.149", "197.97.145.150", "197.97.145.151",
   "196.33.227.224", "196.33.227.225", "196.33.227.226", "196.33.227.227",

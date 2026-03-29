@@ -15,6 +15,15 @@
 import { NextRequest } from "next/server";
 import { handleITN } from "@/lib/payments/handlers";
 
+// FIX: force-dynamic prevents Next.js from caching this route.
+// POST routes can be statically optimised in some Next.js versions —
+// for a webhook that must always run fresh, this is required.
+export const dynamic = "force-dynamic";
+
+// FIX: The crypto module used in signature verification requires the Node.js
+// runtime. The default Edge runtime does not support Node built-ins.
+export const runtime = "nodejs";
+
 export async function POST(req: NextRequest) {
   return handleITN(req);
 }
