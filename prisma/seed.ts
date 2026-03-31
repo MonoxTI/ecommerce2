@@ -2,25 +2,30 @@
 // Run with: npx ts-node prisma/seed.ts
 // Or add to package.json: "prisma": { "seed": "ts-node prisma/seed.ts" }
 // Then run: npx prisma db seed
-
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaNeon } from "@prisma/adapter-neon";
 import bcrypt from "bcryptjs";
 
-const db = new PrismaClient();
+const adapter = new PrismaNeon({
+  connectionString: process.env.DIRECT_URL!,
+});
+
+const db = new PrismaClient({ adapter });
 
 async function main() {
   console.log("🌱 Seeding database...");
 
-  /* ── Admin user ────────────────────────────────────────────
-  const adminEmail = "admin@aurawig.co.za";
+  // ── Admin user ────────────────────────────────────────────
+  const adminEmail = "itu@gmail.com";
   const existing   = await db.user.findUnique({ where: { email: adminEmail } });
 
   if (!existing) {
     await db.user.create({
       data: {
-        name:     "AuraWig Admin",
+        name:     "Itumeleng Monox",
         email:    adminEmail,
-        password: await bcrypt.hash("Admin@1234", 12),
+        password: await bcrypt.hash("Itumeleng1#", 12),
         phone:    "0110001234",
         role:     "ADMIN",
       },
@@ -30,7 +35,7 @@ async function main() {
     console.log("⏭  Admin user already exists");
   }
 
-  */// ── Categories ────────────────────────────────────────────
+  // ── Categories ────────────────────────────────────────────
   const categoryData = [
     { name: "Lace Front Wigs",  slug: "lace-front-wigs"  },
     { name: "HD Lace Wigs",     slug: "hd-lace-wigs"     },
@@ -243,6 +248,8 @@ async function main() {
   console.log("\n🎉 Seed complete!");
   console.log("─────────────────────────────");
   console.log("Admin login:");
+  console.log("  Email:    itu@gmail.com");
+  console.log("  Password: Itumeleng1#");
   console.log("\nCoupons:");
   console.log("  WELCOME10 — 10% off any order");
   console.log("  SAVE200   — R200 off orders over R1,000");

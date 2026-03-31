@@ -17,12 +17,6 @@ const collections = [
   { title: "Full Lace",  subtitle: "Versatile styling, all day wear",    href: "/shop?laceType=Full+Lace",  image: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80" },
 ];
 
-const testimonials = [
-  { name: "Naledi M.", location: "Johannesburg", quote: "The HD Lace wig looks so natural that my colleagues thought it was my real hair. The quality is exceptional.", rating: 5, product: "Deep Wave HD Lace" },
-  { name: "Thandi K.", location: "Cape Town",    quote: "I've tried many wig brands but Novaa is on another level. The hair feels incredibly soft and the lace is flawless.", rating: 5, product: "Body Wave Lace Front" },
-  { name: "Amara O.",  location: "Durban",       quote: "Fast shipping, beautiful packaging, and the wig is absolutely stunning. This is luxury at its finest.", rating: 5, product: "Straight Full Lace" },
-];
-
 // ── UTILITIES ──────────────────────────────────────────────
 function formatPrice(cents: number) {
   return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}`;
@@ -93,13 +87,12 @@ export default function HomePage() {
           <div className="max-w-3xl">
             <SectionLabel>Premium Human Hair</SectionLabel>
             
-            <h1 className="font-playfair text-7xl md:text-9xl font-semibold leading-none text-black mb-3">
-              novaa
-            </h1>
-            
-            <h2 className="font-playfair text-xl md:text-3xl font-normal tracking-[0.05em] text-black/80 mb-6">
-              elevated beauty, with purpose
-            </h2>
+<img
+  src="/3.png"
+  alt="novaa — elevated beauty, with purpose"
+  className="w-64 md:w-80 mb-6"
+  style={{ mixBlendMode: "multiply" }}
+/>
             
             <p className={`${colors.textMuted} text-base md:text-lg leading-relaxed max-w-xl mb-12 font-light`}>
               Handcrafted wigs using 100% virgin human hair. Lace so natural, no one will know. 

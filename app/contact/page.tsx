@@ -49,9 +49,9 @@ export default function ContactPage() {
         <div className="max-w-screen-xl mx-auto">
           <Link 
             href="/" 
-            className="font-playfair text-3xl font-semibold tracking-[0.15em] uppercase text-black hover:opacity-70 transition-opacity inline-block mb-8"
+            className="font-playfair text-3xl font-semibold tracking-[0.15em] text-black hover:opacity-70 transition-opacity inline-block mb-8"
           >
-            Nova<span className="italic font-light">a</span>
+            novaa
           </Link>
           <h1 className="font-playfair text-4xl md:text-5xl font-light text-black tracking-wide">
             Get in Touch

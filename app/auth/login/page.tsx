@@ -51,12 +51,6 @@ export default function LoginPage() {
         
         {/* Logo/Brand */}
         <div className="text-center mb-10">
-          <Link 
-            href="/" 
-            className="font-playfair text-2xl font-semibold tracking-[0.15em] uppercase text-black hover:opacity-70 transition-opacity inline-block"
-          >
-            Nova<span className="italic font-light">a</span>
-          </Link>
           <p className={`${colors.textLight} text-sm mt-3 tracking-widest uppercase`}>
             Welcome back
           </p>

@@ -69,7 +69,7 @@ export default function Navbar() {
           {/* ── Center Logo (Playfair Display) ───────────── */}
           <Link 
             href="/"
-            className="absolute left-1/2 -translate-x-1/2 font-playfair text-2xl md:text-3xl font-semibold tracking-[0.15em] uppercase text-black hover:opacity-80 transition-opacity whitespace-nowrap"
+            className="absolute left-1/2 -translate-x-1/2 font-playfair text-2xl md:text-3xl font-semibold tracking-[0.15em] text-black hover:opacity-80 transition-opacity whitespace-nowrap"
           >
             novaa
           </Link>

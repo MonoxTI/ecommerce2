@@ -1,12 +1,12 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"  // adjust to your output path
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  // ← no url here anymore
 }
+
 enum Role {
   ADMIN
   CUSTOMER
