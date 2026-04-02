@@ -30,6 +30,8 @@ const colors = {
   buttonOutline: "border border-black text-black hover:bg-black hover:text-white",
   buttonDisabled: "opacity-40 cursor-not-allowed",
   
+  error: "text-red-600",
+  
   // Accessible status badge colors (light bg + dark text)
   statusPending: "bg-yellow-50 text-yellow-800 border-yellow-200",
   statusPaid: "bg-blue-50 text-blue-800 border-blue-200",

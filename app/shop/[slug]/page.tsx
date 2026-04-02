@@ -482,8 +482,9 @@ export default function ProductPage() {
                       </div>
                       <div className="flex-1 space-y-1.5">
                         {[5, 4, 3, 2, 1].map((star) => {
-                          const count = product.reviews.filter((r: any) => r.rating === star).length;
-                          const pct   = (count / product.reviews.length) * 100;
+                          const count = product.reviews?.filter((r: any) => r.rating === star).length ?? 0;
+                          const totalReviews = product.reviews?.length ?? 1;
+                          const pct   = (count / totalReviews) * 100;
                           return (
                             <div key={star} className="flex items-center gap-3">
                               <span className="text-xs text-[#666666] w-3 text-right font-cormorant">{star}</span>

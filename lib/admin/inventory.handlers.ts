@@ -78,7 +78,7 @@ export async function handleAddStock(req: NextRequest, variantId: string) {
     set:      z.boolean().optional().default(false), // true = set to, false = add to
   }).safeParse(body);
 
-  if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+  if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
   const { quantity, set } = parsed.data;
 

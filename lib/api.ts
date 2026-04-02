@@ -62,9 +62,18 @@ export const ordersApi = {
 };
 
 export const paymentsApi = {
+  // PayFast (legacy)
   initiate: (orderId: string, token: string) =>
     request<{ fields: Record<string, string>; actionUrl: string }>(
       "/api/payments/initiate", { method: "POST", body: JSON.stringify({ orderId }), headers: h(token) }),
+
+  // Paystack
+  initiatePaystack: (orderId: string, token: string) =>
+    request<{ authorizationUrl: string; reference: string }>(
+      "/api/payments/initiate-paystack", { method: "POST", body: JSON.stringify({ orderId }), headers: h(token) }),
+  verifyPaystack: (reference: string) =>
+    request<{ status: string; orderId?: string }>(
+      "/api/payments/verify-paystack", { method: "POST", body: JSON.stringify({ reference }) }),
 };
 
 export const addressesApi = {
@@ -119,7 +128,7 @@ export const adminApi = {
 export interface User { id: string; name: string; email: string; phone: string; role: "CUSTOMER" | "ADMIN"; isActive: boolean; createdAt: string; _count?: { orders: number; reviews: number }; }
 export interface Category { id: string; name: string; slug: string; _count?: { products: number }; }
 export interface ProductVariant { id: string; sku: string; price: number; stock: number; color?: string; length?: string; density?: string; laceType?: string; capSize?: string; }
-export interface Product { id: string; slug: string; name: string; description: string; brand?: string; category: Category; images: { id: string; url: string }[]; variants: ProductVariant[]; minPrice: number; maxPrice: number; avgRating: number | null; reviewCount: number; inStock: boolean; totalStock: number; }
+export interface Product { id: string; slug: string; name: string; description: string; brand?: string; category: Category; images: { id: string; url: string }[]; variants: ProductVariant[]; minPrice: number; maxPrice: number; avgRating: number | null; reviewCount: number; inStock: boolean; totalStock: number; reviews?: Review[]; }
 export interface CartItem { id: string; quantity: number; variantId: string; lineTotal: number; variant: ProductVariant; product: { id: string; name: string; slug: string; image: string | null }; }
 export interface Cart { id: string | null; items: CartItem[]; itemCount: number; subtotal: number; }
 export interface Address { id: string; userId: string; fullName: string; phone: string; street: string; city: string; province: string; postalCode: string; country: string; createdAt: string; }
