@@ -385,20 +385,6 @@ export default function ProductPage() {
                 ))}
               </div>
             )}
-
-            <div className="space-y-3 pt-2">
-              {[
-                ["🚚", "Free shipping on orders over R1,000"],
-                ["↩",  "14-day hassle-free returns"],
-                ["✦",  "100% virgin human hair guaranteed"],
-                ["🔒", "Secure checkout via PayFast"],
-              ].map(([icon, text]) => (
-                <div key={text as string} className="flex items-center gap-3 text-sm text-[#666666] font-cormorant">
-                  <span className="text-lg">{icon}</span>
-                  <span>{text}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 

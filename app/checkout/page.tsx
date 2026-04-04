@@ -199,11 +199,6 @@ export default function CheckoutPage() {
                 className="w-full bg-[#C9A84C] hover:bg-[#E2C97E] text-[#0A0A0A] py-3 text-xs font-medium tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
                 {loading ? "Processing…" : "Pay with Paystack"}
               </button>
-              <div className="mt-4 pt-4 border-t border-white/[0.06] space-y-2">
-                {["🔒 Secured by Paystack", "✦ 100% Human Hair Guarantee", "↩ 14-Day Returns"].map(t => (
-                  <p key={t} className="text-[#6B6B6B] text-xs">{t}</p>
-                ))}
-              </div>
             </div>
           </div>
         </div>
