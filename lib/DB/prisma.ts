@@ -2,30 +2,30 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-
-// Create Neon adapter using the POOLED connection string
-// - DATABASE_URL  = pooled (with -pooler in hostname) → used at runtime
-// - DIRECT_URL    = direct (no -pooler)               → used for migrations only
-const adapter = new PrismaNeon({
-  connectionString: process.env.DATABASE_URL!,
-});
-
-const prismaInstance =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
-    log:
-      process.env.NODE_ENV === 'development'
-        ? ['query', 'error', 'warn']
-        : ['error'],
-  });
-
-// Hot-reload fix — prevents multiple PrismaClient instances in development
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prismaInstance;
+declare global {
+  // eslint-disable-next-line no-var
+  var prisma: PrismaClient | undefined;
 }
 
-// Export as both 'prisma' and 'db' for compatibility across your codebase
-export const prisma = prismaInstance;
-export const db = prismaInstance;
+function createPrismaClient() {
+  // Neon serverless adapter — used on Vercel / production
+  if (process.env.DATABASE_URL?.includes('neon.tech')) {
+    const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
+    return new PrismaClient({
+      adapter,
+      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    });
+  }
+
+  // Standard PostgreSQL — local dev
+  return new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  });
+}
+
+export const db     = global.prisma ?? createPrismaClient();
+export const prisma = db;
+
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = db;
+}
