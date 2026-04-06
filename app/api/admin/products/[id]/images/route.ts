@@ -18,7 +18,6 @@ export async function GET(
   const { id } = await params;
   const images = await db.productImage.findMany({
     where:   { productId: id },
-    orderBy: { createdAt: "asc" },
   });
   return ok(images);
 }
