@@ -1,7 +1,7 @@
 "use client";
 // app/admin/products/page.tsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { productsApi, Product, Category } from "@/lib/api";
 
@@ -179,21 +179,44 @@ function ImageManager({ productId, images, token, onUpdate }: {
   productId: string; images: { id: string; url: string }[]; token: string;
   onUpdate: (imgs: { id: string; url: string }[]) => void;
 }) {
-  const [url, setUrl] = useState("");
+  const [url, setUrl]         = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
+  const [tab, setTab]         = useState<"file" | "url">("file");
+  const fileRef               = useRef<HTMLInputElement>(null);
 
-  async function add() {
+  async function addUrl() {
     if (!url.trim()) return;
     setLoading(true); setError("");
-    const { ok, data, error } = await apiFetch(`/api/admin/products/${productId}/images`, { method: "POST", body: JSON.stringify({ url: url.trim() }) }, token);
+    const { ok, data, error } = await apiFetch(`/api/admin/products/${productId}/images`,
+      { method: "POST", body: JSON.stringify({ url: url.trim() }) }, token);
     setLoading(false);
     if (!ok) return setError(error ?? "Failed to add image");
     onUpdate([...images, data]); setUrl("");
   }
 
+  async function addFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLoading(true); setError("");
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/admin/products/${productId}/images`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+      credentials: "include",
+    });
+    const json = await res.json();
+    setLoading(false);
+    if (!res.ok) return setError(json.error ?? "Upload failed");
+    onUpdate([...images, json.data]);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   async function del(imageId: string) {
-    const { ok } = await apiFetch(`/api/admin/products/${productId}/images/${imageId}`, { method: "DELETE" }, token);
+    const { ok } = await apiFetch(`/api/admin/products/${productId}/images/${imageId}`,
+      { method: "DELETE" }, token);
     if (ok) onUpdate(images.filter(img => img.id !== imageId));
   }
 
@@ -216,14 +239,43 @@ function ImageManager({ productId, images, token, onUpdate }: {
           No images yet
         </div>
       )}
-      <div className="flex gap-2">
-        <Inp value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/image.jpg" onKeyDown={e => e.key === "Enter" && add()} />
-        <OutlineBtn onClick={add} disabled={loading || !url} className="flex-shrink-0">
-          {loading ? "…" : "+ Add"}
-        </OutlineBtn>
+
+      {/* Tab switch */}
+      <div className="flex border border-white/[0.06]">
+        {(["file", "url"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`flex-1 py-2 text-xs tracking-widest uppercase transition-colors ${
+              tab === t ? "bg-[#C9A84C] text-[#0A0A0A]" : "text-[#6B6B6B] hover:text-[#F5F0E8]"
+            }`}>
+            {t === "file" ? "Upload File" : "Paste URL"}
+          </button>
+        ))}
       </div>
+
+      {tab === "file" ? (
+        <div>
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={addFile} disabled={loading}
+            className="block w-full text-sm text-[#6B6B6B] file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:tracking-widest file:uppercase file:bg-[#C9A84C] file:text-[#0A0A0A] file:cursor-pointer hover:file:bg-[#E2C97E] file:transition-colors disabled:opacity-50"
+          />
+          {loading && <p className="text-[#C9A84C] text-xs mt-2">Uploading…</p>}
+          <p className="text-[#6B6B6B] text-xs mt-2">JPEG, PNG, WebP or GIF — max 5MB</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Inp value={url} onChange={e => setUrl(e.target.value)}
+              placeholder="https://example.com/image.jpg"
+              onKeyDown={e => e.key === "Enter" && addUrl()} />
+            <OutlineBtn onClick={addUrl} disabled={loading || !url} className="flex-shrink-0">
+              {loading ? "…" : "+ Add"}
+            </OutlineBtn>
+          </div>
+          <p className="text-[#6B6B6B] text-xs">Paste a URL and press Enter</p>
+        </div>
+      )}
+
       {error && <p className="text-red-400 text-xs">{error}</p>}
-      <p className="text-[#6B6B6B] text-xs">Paste an image URL and press Enter or click Add</p>
     </div>
   );
 }

@@ -475,15 +475,7 @@ function ShopContent() {
         </div>
       )}
 
-      {/* Toast */}
-      <div className={`fixed bottom-8 right-8 bg-[#2C1F14] text-[#FAF8F5] px-6 py-3.5 text-sm flex items-center gap-3 z-50 transition-all duration-300 ${
-        toastVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8 pointer-events-none"
-      }`}>
-        <span className="text-[#B8965A]">✓</span>
-        {toast}
-      </div>
-
-      <Footer />
+    
     </div>
   );
 }
