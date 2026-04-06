@@ -100,7 +100,7 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="flex gap-12 mt-20 pt-10 border-t border-black/10 flex-wrap">
-              {[["2,400+", "Happy Customers"], ["100%", "Human Hair"], ["Free", "Shipping R1000+"]].map(([val, label]) => (
+              {[["2,400+", "Happy Customers"], ["100%", "Human Hair"], ["Discount", "At R3000+"]].map(([val, label]) => (
                 <div key={label}>
                   <div className="font-serif text-4xl text-black font-semibold leading-none">{val}</div>
                   <div className={`${colors.textLight} text-xs tracking-[0.15em] uppercase mt-2`}>{label}</div>
@@ -108,11 +108,6 @@ export default function HomePage() {
               ))}
             </div>
           </div>
-        </div>
-
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3 text-black/40 text-[0.6rem] tracking-[0.25em] uppercase">
-          <span>Scroll</span>
-          <div className="w-px h-12 bg-gradient-to-b from-black/30 to-transparent animate-pulse" />
         </div>
       </section>
 
