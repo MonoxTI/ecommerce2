@@ -229,9 +229,9 @@ export async function handleGetMyOrders(req: NextRequest) {
   const page  = Math.max(1, Number(searchParams.get("page")  ?? 1));
   const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") ?? 10)));
 
-  const [total, orders] = await db.$transaction([
-    db.order.count({ where: { userId: user.sub } }),
-    db.order.findMany({
+    // Separate queries — Neon serverless doesn't support interactive transactions
+  const total = await db.order.count({ where: { userId: user.sub } });
+  const orders = await db.order.findMany({
       where:   { userId: user.sub },
       orderBy: { createdAt: "desc" },
       skip:    (page - 1) * limit,
@@ -261,8 +261,7 @@ export async function handleGetMyOrders(req: NextRequest) {
           },
         },
       },
-    }),
-  ]);
+    });
 
   return ok({
     items: orders.map(formatOrder),
@@ -382,9 +381,9 @@ export async function handleAdminGetOrders(req: NextRequest) {
     where.user = { email: { contains: search, mode: "insensitive" } };
   }
 
-  const [total, orders] = await db.$transaction([
-    db.order.count({ where }),
-    db.order.findMany({
+    // Separate queries — Neon serverless doesn't support interactive transactions
+  const total = await db.order.count({ where });
+  const orders = await db.order.findMany({
       where,
       orderBy: { createdAt: "desc" },
       skip:    (page - 1) * limit,
@@ -405,8 +404,7 @@ export async function handleAdminGetOrders(req: NextRequest) {
         payment: true,
         address: true,
       },
-    }),
-  ]);
+    });
 
   return ok({
     items: orders.map(formatOrder),

@@ -22,15 +22,14 @@ export async function handleListCoupons(req: NextRequest) {
   const where: any = {};
   if (active !== null) where.active = active === "true";
 
-  const [total, coupons] = await db.$transaction([
-    db.coupon.count({ where }),
-    db.coupon.findMany({
+    // Separate queries — Neon serverless doesn't support interactive transactions
+  const total = await db.coupon.count({ where });
+  const coupons = await db.coupon.findMany({
       where,
       orderBy: { createdAt: "desc" },
       skip:    (page - 1) * limit,
       take:    limit,
-    }),
-  ]);
+    });
 
   return ok({
     items: coupons.map((c) => ({

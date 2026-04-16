@@ -26,9 +26,9 @@ export async function handleListReviews(req: NextRequest) {
     where.verified = verified === "true";
   }
 
-  const [total, reviews] = await db.$transaction([
-    db.review.count({ where }),
-    db.review.findMany({
+    // Separate queries — Neon serverless doesn't support interactive transactions
+  const total = await db.review.count({ where });
+  const reviews = await db.review.findMany({
       where,
       orderBy: { createdAt: "desc" },
       skip:    (page - 1) * limit,
@@ -37,8 +37,7 @@ export async function handleListReviews(req: NextRequest) {
         user:    { select: { id: true, name: true, email: true } },
         product: { select: { id: true, name: true, slug: true } },
       },
-    }),
-  ]);
+    });
 
   return ok({ items: reviews, meta: paginate(total, page, limit) });
 }

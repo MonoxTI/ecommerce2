@@ -11,12 +11,17 @@ function SuccessContent() {
   const params          = useSearchParams();
   const router          = useRouter();
   const { getValidToken } = useAuthStore();
-  const orderId         = params.get("orderId") ?? sessionStorage.getItem("paystack_order");
+  const [orderId, setOrderId] = useState<string | null>(() => params.get("orderId"));
 
   const [status, setStatus]   = useState<"verifying" | "success" | "failed">("verifying");
   const [message, setMessage] = useState("Verifying your payment…");
 
   useEffect(() => {
+    if (!orderId) {
+      const savedOrder = typeof window !== "undefined" ? sessionStorage.getItem("paystack_order") : null;
+      setOrderId(savedOrder);
+    }
+
     async function verify() {
       // Paystack appends ?reference=xxx or ?trxref=xxx to the callback URL
       const reference = params.get("reference") ?? params.get("trxref") ?? sessionStorage.getItem("paystack_ref");
@@ -32,7 +37,7 @@ function SuccessContent() {
         const token = await getValidToken();
         if (!token) { router.push("/auth/login"); return; }
 
-        const res = await fetch("/api/payments/verify", {
+        const res = await fetch("/api/payments/verify-paystack", {
           method:  "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body:    JSON.stringify({ reference }),

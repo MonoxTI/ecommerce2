@@ -23,9 +23,9 @@ export async function handleInventory(req: NextRequest) {
     ? { stock: 0 }
     : { stock: { lte: threshold } };
 
-  const [total, variants] = await db.$transaction([
-    db.productVariant.count({ where: stockFilter }),
-    db.productVariant.findMany({
+    // Separate queries — Neon serverless doesn't support interactive transactions
+  const total = await db.productVariant.count({ where: stockFilter });
+  const variants = await db.productVariant.findMany({
       where:   stockFilter,
       orderBy: { stock: "asc" },
       skip:    (page - 1) * limit,
@@ -40,8 +40,7 @@ export async function handleInventory(req: NextRequest) {
           },
         },
       },
-    }),
-  ]);
+    });
 
   return ok({
     items: variants.map((v) => ({
@@ -78,7 +77,7 @@ export async function handleAddStock(req: NextRequest, variantId: string) {
     set:      z.boolean().optional().default(false), // true = set to, false = add to
   }).safeParse(body);
 
-  if (!parsed.success) return badRequest(parsed.error.issues[0].message);
+  if (!parsed.success) return badRequest(parsed.error.errors[0].message);
 
   const { quantity, set } = parsed.data;
 

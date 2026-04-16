@@ -20,7 +20,6 @@ import {
   ProductSchema,
   ProductQuerySchema,
   ProductVariantSchema,
-  ReviewSchema
 } from "@/lib/validation/schemas";
 import { Role } from "@prisma/client";
 import { z } from "zod";
@@ -118,33 +117,32 @@ export async function handleGetProducts(req: NextRequest) {
     sortBy === "price_desc" ? { variants: { _min: { price: "desc" } } } :
     { createdAt: "desc" }; // newest (default)
 
-  const [total, products] = await db.$transaction([
-    db.product.count({ where }),
-    db.product.findMany({
-      where,
-      orderBy,
-      skip: (page - 1) * limit,
-      take: limit,
-      include: {
-        category: { select: { id: true, name: true, slug: true } },
-        images:   { select: { id: true, url: true }, take: 1 },
-        variants: {
-          select: {
-            id:       true,
-            sku:      true,
-            price:    true,
-            stock:    true,
-            color:    true,
-            length:   true,
-            density:  true,
-            laceType: true,
-            capSize:  true,
-          },
+  // Run as two separate queries — Neon serverless doesn't support interactive transactions
+  const total    = await db.product.count({ where });
+  const products = await db.product.findMany({
+    where,
+    orderBy,
+    skip: (page - 1) * limit,
+    take: limit,
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+      images:   { select: { id: true, url: true }, take: 1 },
+      variants: {
+        select: {
+          id:       true,
+          sku:      true,
+          price:    true,
+          stock:    true,
+          color:    true,
+          length:   true,
+          density:  true,
+          laceType: true,
+          capSize:  true,
         },
-        reviews: { select: { rating: true } },
       },
-    }),
-  ]);
+      reviews: { select: { rating: true } },
+    },
+  });
 
   return ok({
     items: products.map(formatProduct),
@@ -547,55 +545,4 @@ export async function handleUpdateCategory(
   });
 
   return ok(updated, "Category updated");
-}
-
-export async function getReviewsHandler(productSlug: string) {
-  const product = await db.product.findUnique({ where: { slug: productSlug } });
-  if (!product) return badRequest("Product not found");
-
-  const reviews = await db.review.findMany({
-    where:   { productId: product.id, verified: true },
-    orderBy: { createdAt: "desc" },
-    include: { user: { select: { name: true } } },
-  });
-
-  return ok(reviews);
-}
-
-export async function createReviewHandler(
-  userId: string,
-  productSlug: string,
-  body: unknown
-) {
-  const product = await db.product.findUnique({ where: { slug: productSlug } });
-  if (!product) return badRequest("Product not found");
-
-  const parsed = ReviewSchema.safeParse(body);
-  if (!parsed.success) return validationError(parsed.error);
-
-  const existing = await db.review.findFirst({
-    where: { userId, productId: product.id },
-  });
-  if (existing) return conflict("You have already reviewed this product");
-
-  const purchased = await db.order.findFirst({
-    where: {
-      userId,
-      status: { in: ["PAID", "SHIPPED", "DELIVERED"] },
-      items:  { some: { variant: { productId: product.id } } },
-    },
-  });
-
-  const review = await db.review.create({
-    data: {
-      userId:    userId,
-      productId: product.id,
-      rating:    parsed.data.rating,
-      comment:   parsed.data.comment,
-      verified:  !!purchased,
-    },
-    include: { user: { select: { name: true } } },
-  });
-
-  return created(review, "Review submitted successfully");
 }

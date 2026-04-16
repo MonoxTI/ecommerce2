@@ -29,9 +29,9 @@ export async function handleListCustomers(req: NextRequest) {
     ];
   }
 
-  const [total, customers] = await db.$transaction([
-    db.user.count({ where }),
-    db.user.findMany({
+    // Separate queries — Neon serverless doesn't support interactive transactions
+  const total = await db.user.count({ where });
+  const customers = await db.user.findMany({
       where,
       orderBy: { createdAt: "desc" },
       skip:    (page - 1) * limit,
@@ -47,8 +47,7 @@ export async function handleListCustomers(req: NextRequest) {
           select: { orders: true, reviews: true },
         },
       },
-    }),
-  ]);
+    });
 
   return ok({ items: customers, meta: paginate(total, page, limit) });
 }

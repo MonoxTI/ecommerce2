@@ -20,30 +20,14 @@ export async function handleAdminStats(req: NextRequest) {
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const endOfLastMonth   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
 
+  // Run as parallel queries with Promise.all — Neon serverless doesn't support interactive transactions
   const [
-    // Orders
-    totalOrders,
-    ordersToday,
-    ordersThisMonth,
-    ordersLastMonth,
-    pendingOrders,
-    paidOrders,
-    shippedOrders,
-    // Revenue
-    revenueTotal,
-    revenueThisMonth,
-    revenueLastMonth,
-    // Customers
-    totalCustomers,
-    newCustomersThisMonth,
-    // Products
-    totalProducts,
-    totalVariants,
-    outOfStock,
-    lowStock,
-    // Reviews
-    pendingReviews,
-  ] = await db.$transaction([
+    totalOrders, ordersToday, ordersThisMonth, ordersLastMonth,
+    pendingOrders, paidOrders, shippedOrders,
+    revenueTotal, revenueThisMonth, revenueLastMonth,
+    totalCustomers, newCustomersThisMonth,
+    totalProducts, totalVariants, outOfStock, lowStock, pendingReviews,
+  ] = await Promise.all([
     db.order.count(),
     db.order.count({ where: { createdAt: { gte: startOfToday } } }),
     db.order.count({ where: { createdAt: { gte: startOfMonth } } }),
