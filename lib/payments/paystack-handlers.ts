@@ -1,36 +1,17 @@
 // lib/payments/paystack-handlers.ts
-// Paystack API handlers.
 
 import { NextRequest } from "next/server";
-import { Prisma } from "@prisma/client";
 import { db } from "@/lib/DB/prisma";
 import { getCurrentUser } from "@/lib/auth/JWT";
-import {
-  ok,
-  badRequest,
-  unauthorized,
-  notFound,
-} from "@/lib/api/response";
+import { ok, badRequest, unauthorized, notFound } from "@/lib/api/response";
 import {
   initializePaystackTransaction,
   verifyPaystackTransaction,
   verifyPaystackWebhook,
 } from "@/lib/payments/paystack";
 
-// ─── TYPES ───────────────────────────────────────────────────
-
-type OrderWithRelations = Prisma.OrderGetPayload<{
-  include: {
-    payment: true;
-    items: true;
-  };
-}>;
-
-// ─── INITIATE PAYSTACK PAYMENT ───────────────────────────────
-// POST /api/payments/initiate-paystack
-// Body: { orderId }
-//
-// Returns the Paystack authorization URL for redirect.
+// ─── INITIATE ────────────────────────────────────────────────
+// POST /api/payments/initiate
 
 export async function handleInitiatePaystackPayment(req: NextRequest) {
   const user = await getCurrentUser(req);
@@ -39,219 +20,219 @@ export async function handleInitiatePaystackPayment(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body?.orderId) return badRequest("orderId is required");
 
-  // Load the order — must belong to the logged-in user
   const order = await db.order.findFirst({
-    where: {
-      id: body.orderId,
-      userId: user.sub,
-    },
-    include: {
-      payment: true,
-      user: { select: { name: true, email: true, phone: true } },
-    },
+    where:   { id: body.orderId, userId: user.sub },
+    include: { payment: true, user: { select: { name: true, email: true } } },
   });
 
-  if (!order) return notFound("Order not found");
+  if (!order)                              return notFound("Order not found");
+  if (order.payment?.status === "SUCCESS") return badRequest("This order has already been paid");
+  if (order.status === "CANCELLED")        return badRequest("This order has been cancelled");
 
-  // Guards
-  if (order.payment?.status === "SUCCESS") {
-    return badRequest("This order has already been paid");
-  }
-  if (order.status === "CANCELLED") {
-    return badRequest("This order has been cancelled");
-  }
-  if (!["PENDING"].includes(order.status)) {
-    return badRequest(`Order status is "${order.status}" — payment not expected`);
-  }
+  const appUrl      = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const callbackUrl = `${appUrl}/checkout/success?orderId=${order.id}`;
 
-  // Initiate Paystack payment
-  const [firstName, ...rest] = order.user.name.trim().split(" ");
-  const lastName = rest.join(" ") || firstName;
-  
-  const result = await initializePaystackTransaction({
-    orderId: order.id,
+  const { authorizationUrl, accessCode, reference } = await initializePaystackTransaction({
+    orderId:     order.id,
     amountCents: Number(order.total),
-    email: order.user.email,
-    firstName,
-    lastName,
+    email:       order.user.email,
+    callbackUrl,
   });
-  
-  if (!result) return badRequest("Failed to initialize Paystack payment");
-  
-  const { authorizationUrl, reference } = result;
 
-  // Store the payment reference in the database
+  // Store reference for verification later
   await db.payment.upsert({
-    where: { orderId: order.id },
-    update: {
-      transactionId: reference,
-      provider: "paystack",
-    },
+    where:  { orderId: order.id },
+    update: { transactionId: reference, provider: "paystack" },
     create: {
-      orderId: order.id,
-      provider: "paystack",
+      orderId:       order.id,
+      provider:      "paystack",
       transactionId: reference,
-      status: "PENDING",
-      amount: order.total,
+      status:        "PENDING",
+      amount:        order.total,
     },
   });
 
-  return ok({
-    authorizationUrl,
-    reference,
-  });
+  return ok({ authorizationUrl, accessCode, reference });
 }
 
-// ─── VERIFY PAYMENT ──────────────────────────────────────────
-// POST /api/payments/verify-paystack
-// Body: { reference }
-//
-// Verifies a Paystack payment (can be called from callback or webhook)
+// ─── VERIFY ──────────────────────────────────────────────────
+// POST /api/payments/verify
+// Called by the frontend after Paystack redirects back.
 
 export async function handleVerifyPaystackPayment(req: NextRequest) {
+  const user = await getCurrentUser(req);
+  if (!user) return unauthorized();
+
   const body = await req.json().catch(() => null);
   if (!body?.reference) return badRequest("reference is required");
 
-  const paymentData = await verifyPaystackTransaction(body.reference);
-  
-  if (!paymentData) {
-    return badRequest("Payment verification failed");
+  const tx = await verifyPaystackTransaction(body.reference);
+
+  if (tx.status !== "success") {
+    return badRequest(`Payment ${tx.status}. Please try again.`);
   }
 
-  if (paymentData.status === "success") {
-    await processPaymentSuccess(paymentData);
-    return ok({ status: "success", orderId: paymentData.orderId });
-  } else {
-    await processPaymentFailure(paymentData);
-    return ok({ status: "failed", orderId: paymentData.orderId });
+  // Find payment by reference
+  const payment = await db.payment.findFirst({
+    where:   { transactionId: body.reference },
+    include: { order: { include: { items: true } } },
+  });
+
+  if (!payment) return badRequest("Order not found for this transaction");
+  if (payment.status === "SUCCESS") return ok({ orderId: payment.orderId }, "Already processed");
+
+  // Verify amount matches
+  if (tx.amount !== Number(payment.order.total)) {
+    console.error(`[Paystack Verify] Amount mismatch: expected ${payment.order.total}, got ${tx.amount}`);
+    return badRequest("Payment amount does not match order total");
   }
+
+  // Mark as paid — two separate queries (Neon doesn't support interactive transactions)
+  await db.payment.update({
+    where: { id: payment.id },
+    data:  { status: "SUCCESS", transactionId: body.reference },
+  });
+  await db.order.update({
+    where: { id: payment.orderId },
+    data:  { status: "PAID" },
+  });
+
+  console.log(`[Paystack Verify] ✅ Order ${payment.orderId} marked as PAID`);
+  return ok({ orderId: payment.orderId }, "Payment verified successfully");
 }
 
-// ─── PAYSTACK WEBHOOK ────────────────────────────────────────
+// ─── WEBHOOK ─────────────────────────────────────────────────
 // POST /api/payments/paystack-webhook
-// Called by Paystack after payment events.
+// Called by Paystack server-to-server after every payment event.
+// Must always return 200 — Paystack retries on any other status.
 
 export async function handlePaystackWebhook(req: NextRequest) {
-  const rawBody = await req.text();
+  const rawBody   = await req.text();
   const signature = req.headers.get("x-paystack-signature");
 
   if (!signature) {
-    console.error("[Paystack Webhook] Missing signature");
+    console.error("[Paystack Webhook] Missing x-paystack-signature header");
     return new Response("Missing signature", { status: 400 });
   }
 
   if (!verifyPaystackWebhook(rawBody, signature)) {
-    console.error("[Paystack Webhook] Invalid signature");
+    console.error("[Paystack Webhook] Signature verification failed");
     return new Response("Invalid signature", { status: 400 });
   }
 
-  const event = JSON.parse(rawBody);
+  let event: any;
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return new Response("Invalid JSON", { status: 400 });
+  }
 
-  console.log(`[Paystack Webhook] Received event: ${event.event}`);
+  console.log(`[Paystack Webhook] Event: ${event.event}`);
 
   try {
     switch (event.event) {
       case "charge.success":
-        await processPaymentSuccess(event.data);
+        await processSuccess(event.data);
         break;
-
       case "charge.failed":
-        await processPaymentFailure(event.data);
+        await processFailure(event.data);
         break;
-
       default:
-        console.log(`[Paystack Webhook] Unhandled event: ${event.event}`);
+        console.log(`[Paystack Webhook] Unhandled event type: ${event.event}`);
     }
   } catch (err) {
-    console.error(`[Paystack Webhook] Processing failed: ${err}`);
-    return new Response("Processing failed", { status: 500 });
+    console.error(`[Paystack Webhook] Processing error:`, err);
+    // Still return 200 — we don't want Paystack to keep retrying
+    return new Response("OK", { status: 200 });
   }
 
   return new Response("OK", { status: 200 });
 }
 
-// ─── PROCESS PAYMENT SUCCESS ─────────────────────────────────
+// ─── PROCESS SUCCESS ──────────────────────────────────────────
 
-async function processPaymentSuccess(paymentData: any) {
-  const orderId = paymentData.orderId;
+async function processSuccess(data: any) {
+  // Paystack puts your metadata inside data.metadata
+  // orderId is stored there when we initialize the transaction
+  const orderId   = data.metadata?.orderId;
+  const reference = data.reference;
+  const amount    = data.amount; // in cents
+
   if (!orderId) {
-    console.error("[Paystack] Missing orderId in payment data");
+    console.error("[Paystack Webhook] No orderId in metadata — cannot process", data);
     return;
   }
 
   const order = await db.order.findUnique({
-    where: { id: orderId },
-    include: { payment: true, items: true },
+    where:   { id: orderId },
+    include: { payment: true },
   });
 
   if (!order) {
-    console.error(`[Paystack] Order not found: ${orderId}`);
+    console.error(`[Paystack Webhook] Order not found: ${orderId}`);
     return;
   }
 
-  // Verify amount matches
-  if (paymentData.amount !== Number(order.total)) {
-    console.error(`[Paystack] Amount mismatch for order ${orderId}: expected ${order.total} cents, got ${paymentData.amount}`);
+  // Guard — don't double-process
+  if (order.payment?.status === "SUCCESS") {
+    console.log(`[Paystack Webhook] Order ${orderId} already paid — skipping`);
     return;
   }
 
-  // Update payment and order status
-  await db.$transaction([
-    db.payment.updateMany({
-      where: {
-        orderId,
-        status: { not: "SUCCESS" },
-      },
-      data: {
-        status: "SUCCESS",
-        transactionId: paymentData.paystackRef,
-      },
-    }),
-    db.order.update({
-      where: { id: orderId },
-      data: { status: "PAID" },
-    }),
-  ]);
+  // Verify amount
+  if (amount !== Number(order.total)) {
+    console.error(`[Paystack Webhook] Amount mismatch for order ${orderId}: expected ${order.total}, got ${amount}`);
+    return;
+  }
 
-  console.log(`[Paystack] ✅ Order ${orderId} marked as PAID`);
+  // Update payment and order — separate queries for Neon compatibility
+  await db.payment.updateMany({
+    where: { orderId, status: { not: "SUCCESS" } },
+    data:  { status: "SUCCESS", transactionId: reference },
+  });
+  await db.order.update({
+    where: { id: orderId },
+    data:  { status: "PAID" },
+  });
+
+  console.log(`[Paystack Webhook] ✅ Order ${orderId} marked as PAID via webhook`);
 }
 
-// ─── PROCESS PAYMENT FAILURE ─────────────────────────────────
+// ─── PROCESS FAILURE ─────────────────────────────────────────
 
-async function processPaymentFailure(paymentData: any) {
-  const orderId = paymentData.orderId;
+async function processFailure(data: any) {
+  const orderId = data.metadata?.orderId;
   if (!orderId) {
-    console.error("[Paystack] Missing orderId in payment data");
+    console.error("[Paystack Webhook] No orderId in metadata for failed payment");
     return;
   }
 
   const order = await db.order.findUnique({
-    where: { id: orderId },
+    where:   { id: orderId },
     include: { payment: true, items: true },
   });
 
   if (!order) {
-    console.error(`[Paystack] Order not found: ${orderId}`);
+    console.error(`[Paystack Webhook] Order not found: ${orderId}`);
     return;
   }
 
-  // Update payment status and restore stock
-  await db.$transaction(async (tx) => {
-    await tx.payment.updateMany({
-      where: { orderId },
-      data: { status: "FAILED" },
-    });
+  // Mark payment as failed
+  await db.payment.updateMany({
+    where: { orderId },
+    data:  { status: "FAILED" },
+  });
 
-    // Restore stock for each item
+  // Restore stock using callback transaction (safe on Neon)
+  await db.$transaction(async (tx) => {
     for (const item of order.items) {
       await tx.productVariant.update({
         where: { id: item.variantId },
-        data: { stock: { increment: item.quantity } },
+        data:  { stock: { increment: item.quantity } },
       });
     }
-
-    // Keep order as PENDING so user can retry
   });
 
-  console.log(`[Paystack] ❌ Payment FAILED for order ${orderId} — stock restored`);
+  // Keep order as PENDING so customer can retry
+  console.log(`[Paystack Webhook] ❌ Payment failed for order ${orderId} — stock restored`);
 }

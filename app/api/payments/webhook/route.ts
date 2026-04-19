@@ -1,17 +1,11 @@
 // app/api/payments/paystack-webhook/route.ts
-//
-// ⚠️  CRITICAL: This endpoint receives Paystack webhooks.
-//
-// Rules:
-//   - Must return HTTP 200 always (Paystack retries on non-200)
-//   - Must NOT require authentication (Paystack calls this server-to-server)
-//   - Must read raw body for signature verification
-//   - Must be reachable from the internet
+// Receives Paystack webhook events server-to-server.
+// Must always return 200 — Paystack retries on any other status.
+// No auth required — verified via x-paystack-signature header instead.
 
 import { NextRequest } from "next/server";
 import { handlePaystackWebhook } from "@/lib/payments/paystack-handlers";
 
-// FIX: force-dynamic prevents Next.js from caching this route.
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
