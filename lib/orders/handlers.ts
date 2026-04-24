@@ -485,12 +485,32 @@ export async function handleUpdateOrderStatus(
   }
 
   const updated = await db.order.update({
-    where: { id: orderId },
-    data:  { status: parsed.data.status },
+    where:   { id: orderId },
+    data:    { status: parsed.data.status },
+    include: {
+      user:    { select: { name: true, email: true } },
+      items:   { include: { variant: { include: { product: { select: { name: true } } } } } },
+    },
   });
 
-  // TODO: Send status update email to customer
-  // await sendOrderStatusEmail(order.userId, updated.status)
+  // Fire shipped email when admin marks order as SHIPPED
+  if (parsed.data.status === "SHIPPED" && (updated as any).user) {
+    const { sendOrderShippedEmail } = await import("@/lib/emails/mailer");
+    const u = updated as any;
+    sendOrderShippedEmail({
+      to:           u.user.email,
+      customerName: u.user.name,
+      orderId:      orderId,
+      trackingNumber: u.trackingNumber ?? undefined,
+      trackingUrl:    u.trackingUrl    ?? undefined,
+      items: u.items.map((item: any) => ({
+        name:     item.variant.product.name,
+        variant:  [item.variant.color, item.variant.length ? `${item.variant.length}"` : null]
+                    .filter(Boolean).join(" · ") || "Standard",
+        quantity: item.quantity,
+      })),
+    }).catch(console.error);
+  }
 
   return ok(formatOrder(updated), `Order status updated to ${parsed.data.status}`);
 }
