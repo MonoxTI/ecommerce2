@@ -2,7 +2,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/DB/prisma";
-import { ok, notFound, badRequest, paginate } from "@/lib/api/response";
+import { ok, notFound, badRequest, validationError, paginate } from "@/lib/api/response";
 import { requireAdminUser, isErrorResponse } from "@/lib/admin/guard";
 import { z } from "zod";
 
@@ -77,7 +77,7 @@ export async function handleAddStock(req: NextRequest, variantId: string) {
     set:      z.boolean().optional().default(false), // true = set to, false = add to
   }).safeParse(body);
 
-  if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+  if (!parsed.success) return validationError(parsed.error);
 
   const { quantity, set } = parsed.data;
 
