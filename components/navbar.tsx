@@ -38,7 +38,7 @@ export default function Navbar() {
 
           {/* Left nav */}
           <div className="hidden md:flex items-center gap-8 flex-1">
-            {[["Shop", "/shop"], ["Collections", "/shop"], ["About", "/contact"]].map(([label, href]) => (
+            {[["Shop", "/shop"], ["About", "/contact"]].map(([label, href]) => (
               <Link key={label} href={href}
                 className="text-[#555] hover:text-black text-[0.68rem] tracking-[0.2em] uppercase transition-colors font-medium">
                 {label}
@@ -124,7 +124,6 @@ export default function Navbar() {
         <img src="/3.png" alt="novaa" className="h-12 w-auto object-contain mb-4" style={{ mixBlendMode: "multiply" }} />
         {[
           ["Shop", "/shop"],
-          ["Collections", "/shop"],
           ["Cart", "/cart"],
           ...(user
             ? [["My Account", user.role === "ADMIN" ? "/admin" : "/account/orders"]]
