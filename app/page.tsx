@@ -83,7 +83,7 @@ export default function HomePage() {
               <img 
                 src="/3.png" 
                 alt="novaa" 
-                className="h-52 md:h-80 lg:h-135 w-auto object-contain"
+                className="h-65 md:h-90 lg:h-135 w-auto object-contain"
                 style={{ mixBlendMode: "multiply" }} 
               />
             </div>
