@@ -82,7 +82,7 @@ export default function HomePage() {
         <div className="relative z-20 max-w-screen-xl mx-auto px-6 md:px-12 pt-24 pb-16 w-full">
           <div className="max-w-3xl">
             <SectionLabel>Premium Human Hair</SectionLabel>
-            <img src="/3.png" alt="novaa" className="h-20 md:h-28 w-auto object-contain mb-6"
+            <img src="/4.png" alt="novaa" className="h-20 md:h-45 w-auto object-contain mb-6"
               style={{ mixBlendMode: "multiply" }} />
             <p className={`${colors.textMuted} text-base md:text-lg leading-relaxed max-w-xl mb-12 font-light`}>
               Handcrafted wigs using 100% virgin human hair. Lace so natural, no one will know.
