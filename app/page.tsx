@@ -21,15 +21,6 @@ const collections = [
   { title: "Full Lace",  subtitle: "Versatile styling, all day wear",    href: "/shop?category=full-lace-wigs",  image: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80" },
 ];
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-4 mb-6">
-      <span className="text-xs tracking-[0.3em] uppercase text-black/60 font-medium">{children}</span>
-      <div className="h-px flex-1 bg-black/10" />
-    </div>
-  );
-}
-
 function StarRating({ rating }: { rating: number }) {
   return (
     <div className="flex gap-0.5">
@@ -71,43 +62,68 @@ export default function HomePage() {
   return (
     <div className={`${colors.bg} min-h-screen`}>
 
-      {/* ── HERO ─────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
+      {/* ── HERO WITH BIG LOGO ─────────────────────────── */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Background */}
         <div className="absolute inset-0 z-0" style={{
-          background: `linear-gradient(135deg, rgba(241,241,241,0.98) 40%, rgba(241,241,241,0.85) 100%),
+          background: `linear-gradient(180deg, rgba(241,241,241,0.95) 0%, rgba(241,241,241,0.9) 100%),
             url('https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=1600&q=80') center/cover no-repeat`,
         }} />
+        
+        {/* Decorative elements */}
         <div className="absolute left-8 md:left-16 top-1/4 bottom-1/4 w-px bg-gradient-to-b from-black/20 to-transparent z-10" />
+        <div className="absolute right-8 md:right-16 top-1/4 bottom-1/4 w-px bg-gradient-to-b from-black/20 to-transparent z-10" />
 
-        <div className="relative z-20 max-w-screen-xl mx-auto px-6 md:px-12 pt-24 pb-16 w-full">
-          <div className="max-w-3xl">
-            <SectionLabel>Premium Human Hair</SectionLabel>
-            <img src="/4.png" alt="novaa" className="h-20 md:h-45 w-auto object-contain mb-6"
-              style={{ mixBlendMode: "multiply" }} />
-            <p className={`${colors.textMuted} text-base md:text-lg leading-relaxed max-w-xl mb-12 font-light`}>
-              Handcrafted wigs using 100% virgin human hair. Lace so natural, no one will know.
-              From boardroom to ballroom — you set the standard.
+        {/* Main Content */}
+        <div className="relative z-20 max-w-screen-xl mx-auto px-6 md:px-12 pt-12 pb-16 w-full">
+          <div className="flex flex-col items-center text-center">
+            
+            {/* BIG LOGO - Main Focus */}
+            <div className="mb-8 md:mb-12">
+              <img 
+                src="/3.png" 
+                alt="novaa" 
+                className="h-32 md:h-60 lg:h-81 w-auto object-contain"
+                style={{ mixBlendMode: "multiply" }} 
+              />
+            </div>
+
+            {/* Tagline */}
+            <p className={`${colors.textMuted} text-lg md:text-2xl lg:text-3xl leading-relaxed max-w-3xl mb-4 font-light tracking-wide`}>
+              Premium Human Hair Wigs
             </p>
-            <div className="flex gap-4 flex-wrap">
+            <p className={`${colors.textLight} text-sm md:text-base leading-relaxed max-w-2xl mb-12 font-light`}>
+              Handcrafted using 100% virgin human hair. Lace so natural, no one will know.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex gap-6 flex-wrap justify-center mb-16">
               <Link href="/shop"
-                className="inline-flex items-center gap-3 bg-black text-white px-10 py-4 text-xs tracking-[0.2em] uppercase font-medium hover:opacity-80 transition-opacity">
+                className="inline-flex items-center gap-3 bg-black text-white px-12 py-5 text-xs tracking-[0.25em] uppercase font-medium hover:opacity-80 transition-opacity">
                 Shop Collection
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
               <Link href="/shop?category=hd-lace-wigs"
-                className="inline-flex items-center border border-black/30 text-black px-10 py-4 text-xs tracking-[0.2em] uppercase font-medium hover:bg-black hover:text-white transition-all">
+                className="inline-flex items-center border border-black/30 text-black px-12 py-5 text-xs tracking-[0.25em] uppercase font-medium hover:bg-black hover:text-white transition-all">
                 HD Lace
               </Link>
             </div>
-            <div className="flex gap-12 mt-20 pt-10 border-t border-black/10 flex-wrap">
-              {[["2,400+", "Happy Customers"], ["100%", "Human Hair"], ["Discount", "At R3000+"]].map(([val, label]) => (
-                <div key={label}>
-                  <div className="font-serif text-4xl text-black font-semibold leading-none">{val}</div>
-                  <div className={`${colors.textLight} text-xs tracking-[0.15em] uppercase mt-2`}>{label}</div>
+
+            {/* Stats */}
+            <div className="flex gap-16 md:gap-24 pt-10 border-t border-black/10 flex-wrap justify-center">
+              {[["2,400+", "Happy Customers"], ["100%", "Human Hair"], ["R3000+", "Free Shipping"]].map(([val, label]) => (
+                <div key={label} className="text-center">
+                  <div className="font-serif text-3xl md:text-5xl text-black font-semibold leading-none">{val}</div>
+                  <div className={`${colors.textLight} text-xs tracking-[0.2em] uppercase mt-3`}>{label}</div>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="w-px h-16 bg-gradient-to-b from-black/40 to-transparent" />
         </div>
       </section>
 
@@ -116,7 +132,10 @@ export default function HomePage() {
         <div className="max-w-screen-xl mx-auto px-6 md:px-12">
           <div className="flex justify-between items-end mb-16 flex-wrap gap-6">
             <div>
-              <SectionLabel>Our Collection</SectionLabel>
+              <div className="flex items-center gap-4 mb-6">
+                <span className="text-xs tracking-[0.3em] uppercase text-black/60 font-medium">Our Collection</span>
+                <div className="h-px flex-1 bg-black/10" />
+              </div>
               <h2 className="font-serif text-5xl md:text-6xl text-black font-light">Featured Wigs</h2>
             </div>
             <Link href="/shop"
@@ -131,7 +150,6 @@ export default function HomePage() {
               ? Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
               : products.length === 0
                 ? (
-                  // Fallback if no products seeded yet
                   <div className="col-span-4 text-center py-16 text-black/40 text-sm">
                     No products yet — add some in the{" "}
                     <Link href="/admin/products" className="underline hover:text-black">admin panel</Link>.
@@ -193,7 +211,10 @@ export default function HomePage() {
       <section className={`py-28 ${colors.bgAlt}`}>
         <div className="max-w-screen-xl mx-auto px-6 md:px-12">
           <div className="text-center mb-16">
-            <SectionLabel>Shop By Type</SectionLabel>
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <span className="text-xs tracking-[0.3em] uppercase text-black/60 font-medium">Shop By Type</span>
+              <div className="h-px w-24 bg-black/10" />
+            </div>
             <h2 className="font-serif text-5xl md:text-6xl text-black font-light">Find Your Perfect Match</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

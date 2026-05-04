@@ -49,9 +49,9 @@ export default function Navbar() {
           {/* Center logo — fixed height, no margin */}
           <Link href="/" className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
             <img
-              src="/4.png"
+              src="/3.png"
               alt="novaa"
-              className="h-10 md:h-20 w-auto object-contain"
+              className="h-10 md:h-35 w-auto object-contain"
               style={{ opacity: 4.5 }}
             />
           </Link>
