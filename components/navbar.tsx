@@ -51,7 +51,7 @@ export default function Navbar() {
             <img
               src="/3.png"
               alt="novaa"
-              className="h-10 md:h-35 w-auto object-contain"
+              className="h-30 md:h-50 w-auto object-contain"
               style={{ opacity: 4.5 }}
             />
           </Link>
