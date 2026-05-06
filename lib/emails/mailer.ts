@@ -10,7 +10,7 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 
 // Your verified sending domain — update this once you verify your domain in Resend.
 // Until then, use "onboarding@resend.dev" which works for testing (sends only to your account email).
-const FROM = process.env.EMAIL_FROM ?? "novaa <onboarding@resend.dev>";
+const FROM = process.env.EMAIL_FROM ?? "novaa <info@novaa.co.za>";
 const APP_URL = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 // ─── ORDER CONFIRMED ─────────────────────────────────────────

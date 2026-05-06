@@ -108,7 +108,7 @@ export default function OrderShipped({
             </Button>
             <Text style={helpText}>
               Issues with your delivery? Contact us at{" "}
-              <a href="mailto:hello@novaa.co.za" style={link}>hello@novaa.co.za</a>
+              <a href="mailto:info@novaa.co.za" style={link}>info@novaa.co.za</a>
             </Text>
           </Section>
 

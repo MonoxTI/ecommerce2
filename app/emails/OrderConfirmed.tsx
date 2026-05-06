@@ -151,7 +151,7 @@ export default function OrderConfirmed({
             </Button>
             <Text style={helpText}>
               Questions? Reply to this email or contact us at{" "}
-              <a href="mailto:hello@novaa.co.za" style={link}>hello@novaa.co.za</a>
+              <a href="mailto:info@novaa.co.za" style={link}>info@novaa.co.za</a>
             </Text>
           </Section>
 

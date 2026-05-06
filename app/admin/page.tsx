@@ -179,26 +179,6 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div>
-        <p className={`${colors.textLight} text-xs tracking-widest uppercase mb-3`}>Quick Actions</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            ["/admin/orders?status=PENDING",    "View Pending Orders"],
-            ["/admin/inventory?outOfStock=true", "Restock Products"],
-            ["/admin/orders",                    "All Orders"],
-            ["/admin/customers",                 "Customers"],
-          ].map(([href, label]) => (
-            <a 
-              key={href} 
-              href={href}
-              className={`${colors.card} border ${colors.border} ${colors.linkHover} p-4 text-sm ${colors.textLight} transition-colors text-center font-cormorant`}
-            >
-              {label} →
-            </a>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

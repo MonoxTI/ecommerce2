@@ -58,6 +58,9 @@ const colors = {
   
   link: "text-black hover:underline",
   linkMuted: "text-[#666666] hover:text-black",
+  accent: "text-[#C9A84C]",
+  accentHover: "hover:text-[#A68A3D]",
+  accentBg: "bg-[#C9A84C] hover:bg-[#A68A3D] text-black",
 };
 
 // ─── ADDRESS FORM ─────────────────────────────────────────────
@@ -153,7 +156,7 @@ function AddressCard({ address, onEdit, onDelete, deleting }: {
         <div className="flex flex-col gap-2 flex-shrink-0">
           <button 
             onClick={() => onEdit(address)}
-            className={`${colors.text} text-xs tracking-widest uppercase ${colors.linkMuted} transition-colors font-cormorant`}
+            className={`${colors.text} ${colors.accentHover} text-xs tracking-widest uppercase transition-colors font-cormorant`}
           >
             Edit
           </button>
@@ -174,6 +177,19 @@ function AddressCard({ address, onEdit, onDelete, deleting }: {
 export default function ProfilePage() {
   const router  = useRouter();
   const { user, getValidToken, logout } = useAuthStore();
+
+  // Full user profile (from API — has phone + createdAt which JWT doesn't include)
+  const [fullUser, setFullUser]   = useState<any>(null);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const token = await getValidToken();
+      if (!token) return;
+      const { data } = await apiFetch("/api/auth/me", {}, token);
+      if (data?.id) setFullUser(data);
+    }
+    loadProfile();
+  }, []);
 
   // Password
   const [pwForm, setPwForm]       = useState({ currentPassword: "", newPassword: "", confirm: "" });
@@ -280,7 +296,7 @@ export default function ProfilePage() {
               href={href}
               className={`pb-4 -mb-4 border-b-2 transition-colors font-cormorant ${
                 href === "/account/profile"
-                  ? "border-black text-black font-medium"
+                  ? `border-black ${colors.text} font-medium`
                   : `border-transparent ${colors.textLight} ${colors.linkMuted}`
               }`}
             >
@@ -296,13 +312,14 @@ export default function ProfilePage() {
             <h2 className="font-playfair text-xl text-black font-semibold mb-5">Account Details</h2>
             <div className={`space-y-0 divide-y ${colors.borderLight}`}>
               {[
-                ["Name",         user?.name],
-                ["Email",        user?.email],
-                ["Phone",        user?.phone],
-                ["Role",         user?.role],
-                ["Member Since", user?.createdAt
-                  ? new Date(user.createdAt).toLocaleDateString("en-ZA", { month: "long", year: "numeric" })
+                ["Name",         fullUser?.name        ?? user?.name],
+                ["Email",        fullUser?.email       ?? user?.email],
+                ["Phone",        fullUser?.phone       ?? "—"],
+                ["Role",         fullUser?.role        ?? user?.role],
+                ["Member Since", fullUser?.createdAt
+                  ? new Date(fullUser.createdAt).toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })
                   : "—"],
+                ["Orders",       fullUser?._count?.orders ?? "—"],
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between items-center py-3">
                   <span className={`${colors.textLight} text-xs tracking-widest uppercase font-cormorant`}>{label}</span>
@@ -315,11 +332,11 @@ export default function ProfilePage() {
           {/* ── Shipping Addresses ─────────────────────────── */}
           <div className={`${colors.bgCard} border ${colors.border} p-6 rounded-sm`}>
             <div className="flex justify-between items-center mb-5">
-              <h2 className="font-playfair text-xl text-black font-semibold">Shipping Addresses</h2>
+              <h2 className="font-playfair text-xl text-black font-light">Shipping Addresses</h2>
               {!showAddForm && !editingAddr && (
                 <button
                   onClick={() => setShowAddForm(true)}
-                  className={`${colors.text} text-xs tracking-[0.12em] uppercase ${colors.linkMuted} transition-colors font-cormorant`}
+                  className={`${colors.text} ${colors.accentHover} text-xs tracking-[0.12em] uppercase transition-colors font-cormorant`}
                 >
                   + Add Address
                 </button>
@@ -335,7 +352,7 @@ export default function ProfilePage() {
             {/* Add new form */}
             {showAddForm && (
               <div className={`mb-5 p-4 border border-black/20 ${colors.bgAlt} rounded-sm`}>
-                <p className={`${colors.text} text-xs tracking-[0.14em] uppercase mb-4 font-cormorant font-medium`}>New Address</p>
+                <p className={`${colors.accent} text-xs tracking-[0.14em] uppercase mb-4 font-cormorant font-medium`}>New Address</p>
                 <AddressForm
                   initial={EMPTY_ADDR}
                   onSave={handleSaveAddress}
@@ -348,7 +365,7 @@ export default function ProfilePage() {
             {/* Edit form */}
             {editingAddr && (
               <div className={`mb-5 p-4 border border-black/20 ${colors.bgAlt} rounded-sm`}>
-                <p className={`${colors.text} text-xs tracking-[0.14em] uppercase mb-4 font-cormorant font-medium`}>Edit Address</p>
+                <p className={`${colors.accent} text-xs tracking-[0.14em] uppercase mb-4 font-cormorant font-medium`}>Edit Address</p>
                 <AddressForm
                   initial={{
                     fullName:   editingAddr.fullName,
@@ -376,7 +393,7 @@ export default function ProfilePage() {
                 <p className={`${colors.textLight} text-sm mb-3 font-cormorant`}>No addresses saved yet</p>
                 <button 
                   onClick={() => setShowAddForm(true)}
-                  className={`${colors.text} text-xs tracking-[0.12em] uppercase ${colors.linkMuted} font-cormorant`}
+                  className={`${colors.accent} ${colors.accentHover} text-xs tracking-[0.12em] uppercase font-cormorant`}
                 >
                   Add your first address
                 </button>
@@ -398,7 +415,7 @@ export default function ProfilePage() {
 
           {/* ── Change Password ────────────────────────────── */}
           <div className={`${colors.bgCard} border ${colors.border} p-6 rounded-sm`}>
-            <h2 className="font-playfair text-xl text-black font-semibold mb-5">Change Password</h2>
+            <h2 className="font-playfair text-xl text-black font-light mb-5">Change Password</h2>
 
             {pwError && (
               <div className={`mb-4 px-3 py-2 ${colors.errorBg} ${colors.errorBorder} border ${colors.error} text-sm font-cormorant rounded-sm`}>
