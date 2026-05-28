@@ -210,10 +210,55 @@ export async function handleForgotPassword(req: NextRequest) {
       },
     });
 
-    // TODO: Send password reset email
-    // await sendPasswordResetEmail(user.email, token)
-    // Reset link: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`
-    console.log(`[DEV] Password reset token for ${email}: ${token}`);
+    // Send password reset email
+    const appUrl    = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const resetLink = `${appUrl}/auth/reset-password?token=${token}`;
+
+    try {
+      const { Resend } = await import("resend");
+      const resend = new Resend(process.env.RESEND_API_KEY!);
+      const FROM   = process.env.EMAIL_FROM ?? "onboarding@resend.dev";
+
+      await resend.emails.send({
+        from:    FROM,
+        to:      user.email,
+        subject: "Reset your novaa password",
+        html: `
+          <div style="font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; background: #F5F5F5;">
+            <div style="background: #1A1A1A; padding: 28px 36px; text-align: center; margin-bottom: 0;">
+              <h1 style="color: #fff; font-size: 28px; font-weight: 300; letter-spacing: 8px; margin: 0 0 4px;">novaa</h1>
+              <p style="color: #B8965A; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin: 0;">elevated beauty, with purpose.</p>
+            </div>
+            <div style="background: #fff; padding: 40px 36px;">
+              <h2 style="color: #1A1A1A; font-size: 22px; font-weight: 300; margin: 0 0 16px;">Reset your password</h2>
+              <p style="color: #555; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">
+                Hi ${user.name?.split(" ")[0] ?? "there"},<br/><br/>
+                We received a request to reset your password. Click the button below — this link expires in <strong>1 hour</strong>.
+              </p>
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${resetLink}"
+                  style="background: #1A1A1A; color: #fff; text-decoration: none; padding: 14px 32px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-family: Arial, sans-serif; font-weight: 600; display: inline-block;">
+                  Reset Password
+                </a>
+              </div>
+              <p style="color: #999; font-size: 12px; line-height: 1.6; margin: 24px 0 0;">
+                If you didn&apos;t request this, you can safely ignore this email. Your password will not change.
+              </p>
+              <p style="color: #bbb; font-size: 11px; margin: 12px 0 0; word-break: break-all;">
+                Or copy this link: ${resetLink}
+              </p>
+            </div>
+            <div style="text-align: center; padding: 20px; color: #aaa; font-size: 11px;">
+              © ${new Date().getFullYear()} novaa. All rights reserved.
+            </div>
+          </div>
+        `,
+      });
+      console.log(`[Auth] Password reset email sent to ${email}`);
+    } catch (err) {
+      console.error(`[Auth] Failed to send reset email to ${email}:`, err);
+      // Don't expose email errors to the user
+    }
   }
 
   return ok(
