@@ -5,21 +5,24 @@ import Link from "next/link";
 const LINKS = {
   Shop: [
     ["All Wigs",    "/shop"],
-    ["Lace Front",  "/shop?laceType=Lace+Front"],
-    ["Full Lace",   "/shop?laceType=Full+Lace"],
-    ["HD Lace",     "/shop?laceType=HD+Lace"],
+    ["Lace Front",  "/shop?category=lace-front-wigs"],
+    ["HD Lace",     "/shop?category=hd-lace-wigs"],
+    ["Full Lace",   "/shop?category=full-lace-wigs"],
   ],
   Support: [
-    ["FAQ",         "/faq"],
-    ["Shipping",    "/shipping"],
-    ["Returns",     "/returns"],
-    ["Contact",     "/contact"],
+    ["Shipping Policy", "/shipping"],
+    ["Returns Policy",  "/returns"],
+    ["Contact",         "/contact"],
+    ["FAQ",             "/faq"],
+  ],
+  Legal: [
+    ["Privacy Policy",   "/privacy"],
+    ["Terms of Service", "/terms"],
   ],
   Account: [
-    ["My Orders",   "/account/orders"],
-    ["Profile",     "/account/profile"],
-    ["Track Order", "/track"],
-    ["Admin",       "/admin"],
+    ["My Orders",  "/account/orders"],
+    ["Profile",    "/account/profile"],
+    ["Sign In",    "/auth/login"],
   ],
 };
 
