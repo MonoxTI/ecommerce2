@@ -1,132 +1,110 @@
-// app/login/page.tsx
 "use client";
-
-import { useState } from "react";
+// app/auth/login/page.tsx
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { authApi } from "@/lib/api";
 
-export default function LoginPage() {
-  const router  = useRouter();
-  const setAuth = useAuthStore((s) => s.setAuth);
-  const [form, setForm]     = useState({ email: "", password: "" });
-  const [error, setError]   = useState("");
-  const [loading, setLoading] = useState(false);
+function LoginContent() {
+  const router      = useRouter();
+  const params      = useSearchParams();
+  const { setAuth } = useAuthStore();
+
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
+  const [showPw, setShowPw]     = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setLoading(true);
-    const { data, error } = await authApi.login(form);
+    setError(""); setLoading(true);
+
+    const { data, error } = await authApi.login({ email, password });
     setLoading(false);
-    if (error) return setError(error);
-    if (data) {
-      setAuth(data.user, data.accessToken);
-      router.push(data.user.role === "ADMIN" ? "/admin" : "/account/profile");
+
+    if (error || !data) return setError(error ?? "Invalid email or password");
+
+    setAuth(data.user, data.accessToken);
+
+    // Redirect priority:
+    // 1. ?redirect= param (e.g. from checkout or a protected page)
+    // 2. Admin role → /admin
+    // 3. Customer → /account/orders
+    const redirect = params.get("redirect");
+    if (redirect && redirect.startsWith("/")) {
+      router.push(redirect);
+    } else if (data.user.role === "ADMIN") {
+      router.push("/admin");
+    } else {
+      router.push("/account/orders");
     }
   }
 
-  // ── COLOR PALETTE (Cream / Black / White) ─────────────────
-  const colors = {
-    bg: "bg-[#F1F1F1]",
-    card: "bg-white",
-    text: "text-black",
-    textMuted: "text-[#333333]",
-    textLight: "text-[#666666]",
-    border: "border-black/10",
-    inputBg: "bg-white",
-    inputBorder: "border-black/10",
-    inputFocus: "focus:border-black focus:ring-1 focus:ring-black/10",
-    errorBg: "bg-red-50",
-    errorBorder: "border-red-200",
-    errorText: "text-red-600",
-    buttonBg: "bg-black",
-    buttonHover: "hover:bg-[#333333]",
-  };
-
   return (
-    <div className={`min-h-screen ${colors.bg} font-cormorant flex items-center justify-center px-4 pt-20`}>
+    <div className="min-h-screen bg-[#F1F1F1] flex items-center justify-center px-4 pt-20 pb-16 font-cormorant">
       <div className="w-full max-w-md">
-        
-        {/* Logo/Brand */}
+
         <div className="text-center mb-10">
-          <p className={`${colors.textLight} text-sm mt-3 tracking-widest uppercase`}>
-            Welcome back
-          </p>
+          <Link href="/">
+            <img src="/6.png" alt="novaa"
+              className="h-16 w-auto object-contain mx-auto hover:opacity-70 transition-opacity" />
+          </Link>
         </div>
 
-        {/* Card */}
-        <div className={`border ${colors.border} ${colors.card} p-8 shadow-sm`}>
-          <h1 className={`font-playfair text-2xl ${colors.text} font-semibold mb-6`}>
-            Sign In
-          </h1>
+        <div className="bg-white border border-black/10 p-8 md:p-10">
+          <div className="mb-8">
+            <h1 className="font-serif text-3xl text-black font-light mb-1">Welcome back</h1>
+            <p className="text-[#666] text-sm">Sign in to your novaa account</p>
+          </div>
 
           {error && (
-            <div className={`mb-5 px-4 py-3 ${colors.errorBg} border ${colors.errorBorder} ${colors.errorText} text-sm rounded-sm font-cormorant`}>
-              {error}
-            </div>
+            <div className="mb-5 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email Field */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className={`block ${colors.textLight} font-cormorant text-xs tracking-widest uppercase mb-2`}>
-                Email
-              </label>
-              <input
-                type="email" 
-                required
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                className={`w-full ${colors.inputBg} font-cormorant border ${colors.inputBorder} ${colors.text} px-4 py-3 text-sm outline-none ${colors.inputFocus} transition-colors placeholder:${colors.textLight} rounded-sm`}
-                placeholder="your@email.com"
-                autoComplete="email"
+              <label className="block text-black/60 text-xs tracking-[0.14em] uppercase mb-2">Email Address</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-[#F8F8F8] border border-black/10 text-black px-4 py-3 text-sm outline-none focus:border-black transition-colors placeholder:text-black/30"
               />
             </div>
 
-            {/* Password Field */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className={`${colors.textLight} font-cormorant text-xs tracking-widest uppercase`}>
-                  Password
-                </label>
-                <Link 
-                  href="/auth/forgot-password" 
-                  className="text-black text-xs hover:underline font-cormorant font-medium"
-                >
-                  Forgot password?
+                <label className="block text-black/60 text-xs tracking-[0.14em] uppercase">Password</label>
+                <Link href="/auth/forgot-password"
+                  className="text-black/50 hover:text-black text-xs tracking-wider uppercase transition-colors">
+                  Forgot?
                 </Link>
               </div>
-              <input
-                type="password" 
-                required
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                className={`w-full ${colors.inputBg} font-cormorant border ${colors.inputBorder} ${colors.text} px-4 py-3 text-sm outline-none ${colors.inputFocus} transition-colors placeholder:${colors.textLight} rounded-sm`}
-                placeholder="••••••••"
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <input type={showPw ? "text" : "password"} required value={password}
+                  onChange={e => setPassword(e.target.value)} placeholder="Your password"
+                  className="w-full bg-[#F8F8F8] border border-black/10 text-black px-4 py-3 text-sm outline-none focus:border-black transition-colors placeholder:text-black/30 pr-12"
+                />
+                <button type="button" onClick={() => setShowPw(!showPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-black/30 hover:text-black transition-colors">
+                  {showPw
+                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  }
+                </button>
+              </div>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full ${colors.buttonBg} ${colors.buttonHover} text-white py-3 text-xs font-medium tracking-widest uppercase transition-colors disabled:opacity-40 disabled:cursor-not-allowed mt-2 rounded-sm font-cormorant`}
-            >
+            <button type="submit" disabled={loading}
+              className="w-full bg-black hover:opacity-80 text-white py-3.5 text-xs font-medium tracking-[0.2em] uppercase transition-opacity disabled:opacity-50">
               {loading ? "Signing in…" : "Sign In"}
             </button>
           </form>
 
-          {/* Register Link */}
-          <div className={`mt-6 pt-6 border-t ${colors.border} text-center`}>
-            <p className={`${colors.textMuted} text-sm font-cormorant`}>
-              Don't have an account?{" "}
-              <Link 
-                href="/auth/register" 
-                className="text-black hover:underline font-medium font-cormorant"
-              >
+          <div className="mt-6 pt-6 border-t border-black/8 text-center">
+            <p className="text-[#666] text-sm">
+              Don&apos;t have an account?{" "}
+              <Link href="/auth/register" className="text-black underline underline-offset-4 hover:opacity-70 transition-opacity">
                 Create one
               </Link>
             </p>
@@ -135,4 +113,8 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+export default function LoginPage() {
+  return <Suspense><LoginContent /></Suspense>;
 }

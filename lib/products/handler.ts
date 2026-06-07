@@ -84,7 +84,7 @@ export async function handleGetProducts(req: NextRequest) {
   } = query.data;
 
   // Build dynamic WHERE clause
-  const where: any = {};
+  const where: any = { isActive: true }; // never show hidden products in public shop
 
   if (category) {
     where.category = { slug: category };
@@ -319,19 +319,13 @@ export async function handleDeleteProduct(
   const hasOrders = product.variants.some((v) => v.orderItems.length > 0);
 
   if (hasOrders) {
-    // Can't hard delete — would break order history
-    // Instead remove all stock so it can't be purchased
-    await db.productVariant.updateMany({
-      where: { productId: id },
-      data:  { stock: 0 },
-    });
-    return ok(
-      null,
-      "Product has existing orders — stock set to 0 to prevent new purchases."
+    // Can't hard delete — would break order history. Refuse and let admin use PATCH isActive:false instead.
+    return badRequest(
+      "This product has existing orders and cannot be permanently deleted. Use the Hide option to remove it from the shop."
     );
   }
 
-  // Safe to hard delete
+  // Safe to hard delete — no orders reference this product
   await db.product.delete({ where: { id } });
   return ok(null, "Product deleted successfully");
 }

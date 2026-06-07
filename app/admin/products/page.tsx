@@ -562,11 +562,26 @@ export default function AdminProductsPage() {
     setLoading(false);
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete "${name}"?\n\nIf this product has existing orders, its stock will be set to 0 instead.`)) return;
+  async function handleArchive(id: string, name: string, currentlyActive: boolean) {
+    const action = currentlyActive ? "hide" : "restore";
+    if (!confirm(`${currentlyActive ? "Hide" : "Restore"} "${name}"?\n\n${currentlyActive ? "It will no longer appear in the shop but order history is preserved." : "It will reappear in the shop."}`)) return;
     setDeleting(id);
-    await apiFetch(`/api/admin/products/${id}`, { method: "DELETE" }, token);
+    await apiFetch(`/api/admin/products/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isActive: !currentlyActive }),
+    }, token);
     setDeleting(null);
+    loadProducts(search);
+  }
+
+  async function handleHardDelete(id: string, name: string) {
+    if (!confirm(`Permanently delete "${name}"?\n\nThis cannot be undone. Only works if the product has no orders.`)) return;
+    setDeleting(id);
+    const { ok, error } = await apiFetch(`/api/admin/products/${id}`, { method: "DELETE" }, token);
+    setDeleting(null);
+    if (!ok) {
+      alert(error ?? "Cannot delete — this product has existing orders. Use Hide instead.");
+    }
     loadProducts(search);
   }
 
@@ -629,7 +644,8 @@ export default function AdminProductsPage() {
                   </div>
                 )}
                 <div className="absolute top-2 left-2 flex flex-col gap-1">
-                  {!product.inStock && <span className="bg-red-500/80 text-white text-[0.6rem] px-1.5 py-0.5 tracking-wider uppercase">Out of Stock</span>}
+                  {(product as any).isActive === false && <span className="bg-black/80 text-white text-[0.6rem] px-1.5 py-0.5 tracking-wider uppercase">Hidden</span>}
+                  {!product.inStock && (product as any).isActive !== false && <span className="bg-red-500/80 text-white text-[0.6rem] px-1.5 py-0.5 tracking-wider uppercase">Out of Stock</span>}
                   {product.inStock && product.totalStock <= 5 && <span className="bg-orange-500/80 text-white text-[0.6rem] px-1.5 py-0.5 tracking-wider uppercase">Low Stock</span>}
                 </div>
               </div>
@@ -640,14 +656,24 @@ export default function AdminProductsPage() {
                   <span className="font-serif text-[#C9A84C]">{formatPrice(product.minPrice)}</span>
                   <span className="text-[#6B6B6B] text-xs">{product.variants.length} var.</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <button onClick={() => { setSelected(product); setDrawer("edit"); }}
                     className="flex-1 py-1.5 text-xs border border-white/[0.06] text-[#6B6B6B] hover:text-[#C9A84C] hover:border-[#C9A84C]/40 transition-colors">
                     Edit
                   </button>
-                  <button onClick={() => handleDelete(product.id, product.name)} disabled={deleting === product.id}
-                    className="flex-1 py-1.5 text-xs border border-red-800/20 text-red-400/50 hover:text-red-400 hover:border-red-800/50 transition-colors disabled:opacity-30">
-                    {deleting === product.id ? "…" : "Delete"}
+                  <button
+                    onClick={() => handleArchive(product.id, product.name, (product as any).isActive !== false)}
+                    disabled={deleting === product.id}
+                    className={`flex-1 py-1.5 text-xs border transition-colors disabled:opacity-30 ${
+                      (product as any).isActive === false
+                        ? "border-green-800/30 text-green-400/60 hover:text-green-400 hover:border-green-800/50"
+                        : "border-yellow-800/20 text-yellow-400/50 hover:text-yellow-400 hover:border-yellow-800/40"
+                    }`}>
+                    {deleting === product.id ? "…" : (product as any).isActive === false ? "Restore" : "Hide"}
+                  </button>
+                  <button onClick={() => handleHardDelete(product.id, product.name)} disabled={deleting === product.id}
+                    className="py-1.5 px-2 text-xs border border-red-800/20 text-red-400/40 hover:text-red-400 hover:border-red-800/50 transition-colors disabled:opacity-30">
+                    🗑
                   </button>
                 </div>
               </div>
