@@ -88,7 +88,7 @@ function apiUnauth(message: string): NextResponse {
 // ─── PROXY HANDLER ───────────────────────────────────────────
 // Next.js 16 uses proxy.ts with a function named "middleware"
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Skip Next.js internals and static files
