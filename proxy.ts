@@ -51,13 +51,14 @@ function withSecurityHeaders(res: NextResponse): NextResponse {
     res.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     res.headers.set("Content-Security-Policy", [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://www.payfast.co.za",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https:",
-      "font-src 'self'",
-      "connect-src 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
-      "frame-src https://www.payfast.co.za https://sandbox.payfast.co.za",
-      "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
+      "script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: https: blob:",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "connect-src 'self' https://api.paystack.co https://checkout.paystack.com",
+      "frame-src https://checkout.paystack.com",
+      "form-action 'self' https://checkout.paystack.com",
     ].join("; "));
   }
 
@@ -87,7 +88,7 @@ function apiUnauth(message: string): NextResponse {
 // ─── PROXY HANDLER ───────────────────────────────────────────
 // Next.js 16 uses proxy.ts with a function named "middleware"
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Skip Next.js internals and static files
