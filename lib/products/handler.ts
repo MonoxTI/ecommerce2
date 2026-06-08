@@ -84,7 +84,7 @@ export async function handleGetProducts(req: NextRequest) {
   } = query.data;
 
   // Build dynamic WHERE clause
-  const where: any = { isActive: true }; // never show hidden products in public shop
+  const where: any = {}; // isActive filter added after running: npx prisma db push
 
   if (category) {
     where.category = { slug: category };
