@@ -87,12 +87,11 @@ function CategoryModal({ token, onClose, onCreated }: { token: string; onClose: 
 interface VF { id?: string; sku: string; price: string; stock: string; color: string; length: string; density: string; laceType: string; capSize: string; }
 const EMPTY_V: VF = { sku: "", price: "", stock: "", color: "", length: "", density: "", laceType: "", capSize: "" };
 
-function VariantRow({ v, i, onChange, onRemove, onSave, onDeleteVariant, isSaved, token }: {
+function VariantRow({ v, i, onChange, onRemove, onSave, isSaved, token }: {
   v: VF; i: number;
   onChange: (i: number, f: keyof VF, val: string) => void;
   onRemove: (i: number) => void;
   onSave?: (i: number) => Promise<void>;
-  onDeleteVariant?: (variantId: string) => Promise<void>;
   isSaved: boolean; token: string;
 }) {
   const [saving, setSaving] = useState(false);
@@ -149,15 +148,6 @@ function VariantRow({ v, i, onChange, onRemove, onSave, onDeleteVariant, isSaved
           <OutlineBtn onClick={saveVariant} disabled={saving}>
             {saving ? "Saving…" : v.id ? "Update Variant" : "Create Variant"}
           </OutlineBtn>
-        )}
-
-        {/* Delete variant (only for saved variants) */}
-        {v.id && onDeleteVariant && (
-          <button
-            onClick={() => onDeleteVariant(v.id!)}
-            className="px-3 py-2 text-xs border border-red-800/30 text-red-400/60 hover:text-red-400 hover:border-red-800/60 transition-colors uppercase tracking-wider ml-auto">
-            Delete Variant
-          </button>
         )}
 
         {/* Stock update (only for saved variants) */}
@@ -327,18 +317,6 @@ function ProductDrawer({ product, categories, token, onClose, onSaved }: {
     if (!isEdit) setSlug(slugify(val));
   }
 
-  async function handleDeleteVariant(variantId: string) {
-    if (!product) return;
-    if (!confirm("Delete this variant?\n\nIf it has existing orders, stock will be set to 0 instead.")) return;
-    const { ok, error } = await apiFetch(
-      `/api/admin/products/${product.id}/variants/${variantId}`,
-      { method: "DELETE" }, token
-    );
-    if (!ok) { setError(error ?? "Failed to delete variant"); return; }
-    setVariants(vs => vs.filter(v => v.id !== variantId));
-    setError("");
-  }
-
   async function saveVariant(idx: number) {
     if (!product) return;
     const v = variants[idx];
@@ -505,7 +483,6 @@ function ProductDrawer({ product, categories, token, onClose, onSaved }: {
                     onChange={(i, f, val) => setVariants(vs => vs.map((item, j) => j === i ? { ...item, [f]: val } : item))}
                     onRemove={i => setVariants(vs => vs.filter((_, j) => j !== i))}
                     onSave={isEdit ? saveVariant : undefined}
-                    onDeleteVariant={isEdit ? handleDeleteVariant : undefined}
                     isSaved={isEdit && !!v.id}
                     token={token}
                   />
@@ -586,14 +563,14 @@ export default function AdminProductsPage() {
   }
 
   async function handleArchive(id: string, name: string, currentlyActive: boolean) {
-    if (!confirm(`${currentlyActive ? "Hide" : "Restore"} "${name}"?\n\n${currentlyActive ? "It will no longer appear in the shop." : "It will reappear in the shop."}`)) return;
+    const action = currentlyActive ? "hide" : "restore";
+    if (!confirm(`${currentlyActive ? "Hide" : "Restore"} "${name}"?\n\n${currentlyActive ? "It will no longer appear in the shop but order history is preserved." : "It will reappear in the shop."}`)) return;
     setDeleting(id);
-    const { ok, error } = await apiFetch(`/api/admin/products/${id}`, {
+    await apiFetch(`/api/admin/products/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ isActive: !currentlyActive }),
     }, token);
     setDeleting(null);
-    if (!ok) alert(error ?? "Failed to update product visibility");
     loadProducts(search);
   }
 

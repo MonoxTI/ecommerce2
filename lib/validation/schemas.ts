@@ -68,8 +68,7 @@ export const ProductSchema = z.object({
   slug:        z.string().regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers and hyphens"),
   description: z.string().min(10),
   brand:       z.string().optional(),
-  isActive:    z.boolean().optional(),
-  variants:    z.array(ProductVariantSchema).min(1, "At least one variant required").optional(),
+  variants:    z.array(ProductVariantSchema).min(1, "At least one variant required"),
 });
 
 export const ProductQuerySchema = z.object({
