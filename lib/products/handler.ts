@@ -214,6 +214,10 @@ export async function handleCreateProduct(req: NextRequest) {
 
   const { variants, ...productData } = parsed.data;
 
+  if (!variants || variants.length === 0) {
+    return badRequest("At least one variant is required");
+  }
+
   // Check slug is unique
   const existing = await db.product.findUnique({
     where: { slug: productData.slug },
