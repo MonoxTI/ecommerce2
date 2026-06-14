@@ -4,7 +4,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/DB/prisma";
-import { getCurrentUser } from "@/lib/auth/JWT";
+import { getCurrentUser } from "@/lib/auth/jwt";
 import {
   ok,
   created,
@@ -84,7 +84,7 @@ export async function handleGetProducts(req: NextRequest) {
   } = query.data;
 
   // Build dynamic WHERE clause
-  const where: any = {}; // isActive filter added after running: npx prisma db push
+  const where: any = { isActive: true }; // never show hidden products in public shop
 
   if (category) {
     where.category = { slug: category };
@@ -392,6 +392,38 @@ export async function handleUpdateVariant(
 
   return ok(updated, "Variant updated");
 }
+// ─── DELETE VARIANT (ADMIN) ──────────────────────────────────
+// DELETE /api/admin/products/[id]/variants/[variantId]
+
+export async function handleDeleteVariant(
+  req: NextRequest,
+  productId: string,
+  variantId: string
+) {
+  const user = await getCurrentUser(req);
+  if (!user) return unauthorized();
+  if (!isAdmin(user.role)) return forbidden("Admin access required");
+
+  const variant = await db.productVariant.findFirst({
+    where:   { id: variantId, productId },
+    include: { orderItems: { take: 1 } },
+  });
+  if (!variant) return notFound("Variant not found");
+
+  // If variant has been ordered — set stock to 0 instead of deleting
+  if (variant.orderItems.length > 0) {
+    await db.productVariant.update({
+      where: { id: variantId },
+      data:  { stock: 0 },
+    });
+    return ok(null, "Variant has existing orders — stock set to 0.");
+  }
+
+  await db.productVariant.delete({ where: { id: variantId } });
+  return ok(null, "Variant deleted");
+}
+
+
 
 // ─── UPDATE STOCK (ADMIN) ────────────────────────────────────
 // PATCH /api/admin/products/[id]/variants/[variantId]/stock
