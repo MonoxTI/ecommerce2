@@ -185,7 +185,6 @@ export async function handleGetProduct(
           rating:    true,
           comment:   true,
           verified:  true,
-          helpful:   true,
           createdAt: true,
           user: { select: { name: true } },
         },
