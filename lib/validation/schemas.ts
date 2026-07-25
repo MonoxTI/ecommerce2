@@ -69,6 +69,7 @@ export const ProductSchema = z.object({
   description: z.string().min(10),
   brand:       z.string().optional(),
   variants:    z.array(ProductVariantSchema).min(1, "At least one variant required"),
+  isActive:    z.boolean().optional(),
 });
 
 export const ProductQuerySchema = z.object({

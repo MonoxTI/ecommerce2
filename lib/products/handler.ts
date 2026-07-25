@@ -84,7 +84,7 @@ export async function handleGetProducts(req: NextRequest) {
   } = query.data;
 
   // Build dynamic WHERE clause
-  const where: any = {}; // isActive filter added after running: npx prisma db push
+ const where: any = { isActive: true }; // isActive filter added after running: npx prisma db push
 
   if (category) {
     where.category = { slug: category };
@@ -159,7 +159,7 @@ export async function handleGetProduct(
   slug: string
 ) {
   const product = await db.product.findUnique({
-    where: { slug },
+    where: { slug, isActive: true }, // isActive filter added after running: npx prisma db push
     include: {
       category: { select: { id: true, name: true, slug: true } },
       images:   { select: { id: true, url: true } },
@@ -318,12 +318,10 @@ export async function handleDeleteProduct(
   // Check if any variant has been ordered
   const hasOrders = product.variants.some((v) => v.orderItems.length > 0);
 
-  if (hasOrders) {
-    // Can't hard delete — would break order history. Refuse and let admin use PATCH isActive:false instead.
-    return badRequest(
-      "This product has existing orders and cannot be permanently deleted. Use the Hide option to remove it from the shop."
-    );
-  }
+ if (hasOrders) {
+  await db.product.update({ where: { id }, data: { isActive: false } });
+  return ok(null, "Product hidden successfully");
+}
 
   // Safe to hard delete — no orders reference this product
   await db.product.delete({ where: { id } });

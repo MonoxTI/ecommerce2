@@ -11,6 +11,17 @@ function formatPrice(cents: number) {
   return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}`;
 }
 
+// ordersApi only gives us a string `error`, not an HTTP status code, so we
+// detect "session expired / not logged in" by matching the message text
+// returned by unauthorized() in lib/api/response.ts. This is a best-effort
+// guess — if your API's unauthorized() default message differs from
+// "Unauthorized" / "Session expired", update this to match it exactly, or
+// (better) have ordersApi surface the actual response status instead.
+function isUnauthorized(error: string) {
+  const msg = error.toLowerCase();
+  return msg.includes("unauthorized") || msg.includes("session expired");
+}
+
 // ── COLOR PALETTE (Cream / Black / White) ─────────────────
 const colors = {
   bg: "bg-[#F1F1F1]",
@@ -118,10 +129,10 @@ export default function OrderDetailPage() {
       // automatically by the browser on this same-origin request. This
       // route is already gated server-side by proxy.ts, so an
       // unauthenticated visitor is redirected to /auth/login before this
-      // component ever renders. The 401 branch below is just a fallback
-      // in case a session expires while the page is already open.
-      const { data, error, status } = await ordersApi.get(orderId);
-      if (status === 401) {
+      // component ever renders. The unauthorized() branch below is just a
+      // fallback in case a session expires while the page is already open.
+      const { data, error } = await ordersApi.get(orderId);
+      if (error && isUnauthorized(error)) {
         router.push(`/auth/login?redirect=/account/orders/${orderId}`);
         return;
       }
@@ -135,9 +146,9 @@ export default function OrderDetailPage() {
   async function handleCancel() {
     if (!confirm("Cancel this order? Stock will be restored.")) return;
     setCancelling(true); setCancelError("");
-    const { error, status } = await ordersApi.cancel(orderId);
+    const { error } = await ordersApi.cancel(orderId);
     setCancelling(false);
-    if (status === 401) {
+    if (error && isUnauthorized(error)) {
       router.push(`/auth/login?redirect=/account/orders/${orderId}`);
       return;
     }

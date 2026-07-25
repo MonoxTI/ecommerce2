@@ -118,6 +118,7 @@ model Product {
   variants    ProductVariant[]
   reviews     Review[]
 
+  isActive Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
