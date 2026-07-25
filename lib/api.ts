@@ -53,7 +53,8 @@ export const cartApi = {
 export const ordersApi = {
   list: (token: string, page = 1) =>
     request<{ items: Order[]; meta: PaginationMeta }>(`/api/orders?page=${page}`, { headers: h(token) }),
-  get: (id: string, token: string) => request<Order>(`/api/orders/${id}`, { headers: h(token) }),
+ get: (id: string, token?: string) =>
+    request<Order>(`/api/orders/${id}`, token ? { headers: h(token) } : {}),
   checkout: (b: { addressId: string; couponCode?: string }, token: string) =>
     request<{ orderId: string; total: number; totalRands: number; shippingCost: number; discountAmount: number }>(
       "/api/orders", { method: "POST", body: JSON.stringify(b), headers: h(token) }),
