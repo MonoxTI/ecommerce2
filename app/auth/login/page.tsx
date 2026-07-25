@@ -26,7 +26,16 @@ function LoginContent() {
 
     if (error || !data) return setError(error ?? "Invalid email or password");
 
-    setAuth(data.user, data.accessToken);
+    // No token argument — the access token lives only in the httpOnly
+    // cookie set by the server. The client never sees or stores it.
+    setAuth(data.user);
+
+    // Clear Next.js's client-side route cache before navigating.
+    // Without this, a protected page visited (or prefetched) earlier
+    // in the session while logged out can still be served from that
+    // stale cache after login, bouncing you straight back to
+    // /auth/login?redirect=... even though your cookie is now valid.
+    router.refresh();
 
     // Redirect priority:
     // 1. ?redirect= param (e.g. from checkout or a protected page)

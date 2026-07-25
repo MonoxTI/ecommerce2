@@ -99,6 +99,10 @@ export async function handleLogin(req: NextRequest) {
   const tokens = await issueTokenPair(user.id, user.email, user.role);
   await setAuthCookies(tokens);
 
+  // Note: accessToken is intentionally NOT included in the response body.
+  // It's already set as an httpOnly cookie — returning it here would
+  // expose it to any client-side JS on the page (defeats the point of
+  // httpOnly). The browser client should rely on the cookie alone.
   return ok({
     user: {
       id:    user.id,
@@ -106,7 +110,6 @@ export async function handleLogin(req: NextRequest) {
       email: user.email,
       role:  user.role,
     },
-    accessToken: tokens.accessToken,
   });
 }
 
@@ -152,7 +155,9 @@ export async function handleRefresh(req: NextRequest) {
   }
 
   await setAuthCookies(tokens);
-  return ok({ accessToken: tokens.accessToken }, "Token refreshed");
+
+  // accessToken intentionally omitted from the body — see handleLogin.
+  return ok(null, "Token refreshed");
 }
 
 // ─── ME ──────────────────────────────────────────────────────
@@ -200,8 +205,10 @@ export async function handleForgotPassword(req: NextRequest) {
     const token     = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    // Store token in DB (you can add a PasswordReset model, or store on User)
-    // For now we store it as a special refresh token with a prefix
+    // Store token in DB (you can add a PasswordReset model, or store on User).
+    // Stored here as a "reset_"-prefixed refresh token. NOTE: rotateRefreshToken()
+    // explicitly rejects any token with this prefix, so this token can only ever
+    // be consumed by handleResetPassword() below — never used to log in.
     await db.refreshToken.create({
       data: {
         token:     `reset_${token}`,

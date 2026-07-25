@@ -38,6 +38,11 @@ export const REFRESH_TOKEN_TTL  = 30 * 24 * 60 * 60; // 30 days in seconds
 export const ACCESS_COOKIE  = "ws_access";
 export const REFRESH_COOKIE = "ws_refresh";
 
+// Prefix used for single-use password-reset tokens stored in the
+// same table as refresh tokens. These must NEVER be accepted by
+// rotateRefreshToken() — see guard below.
+const RESET_TOKEN_PREFIX = "reset_";
+
 // ─── SIGN ────────────────────────────────────────────────────
 
 export async function signAccessToken(
@@ -93,8 +98,8 @@ export async function setAuthCookies(tokens: TokenPair): Promise<void> {
   const cookieStore = await cookies();
   const isProd = process.env.NODE_ENV === "production";
 
-  // Access token — readable by JS so the client can get the value once,
-  // then store in memory. HttpOnly keeps it safe from XSS.
+  // Access token — httpOnly, sent on every request so the server
+  // can authenticate the user. Never readable by client-side JS.
   cookieStore.set(ACCESS_COOKIE, tokens.accessToken, {
     httpOnly: true,
     secure:   isProd,
@@ -116,8 +121,10 @@ export async function setAuthCookies(tokens: TokenPair): Promise<void> {
 
 export async function clearAuthCookies(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete(ACCESS_COOKIE);
-  cookieStore.delete(REFRESH_COOKIE);
+  // Path must match exactly what the cookie was set with, or the
+  // browser won't recognise it as the same cookie and won't delete it.
+  cookieStore.delete({ name: ACCESS_COOKIE, path: "/" });
+  cookieStore.delete({ name: REFRESH_COOKIE, path: "/api/auth" });
 }
 
 // ─── GET USER FROM REQUEST ───────────────────────────────────
@@ -151,6 +158,12 @@ export async function getCurrentUser(
 export async function rotateRefreshToken(
   rawToken: string
 ): Promise<TokenPair | null> {
+  // 🔒 Password-reset tokens are single-purpose (set a new password)
+  // and must never be accepted here as a login/refresh credential.
+  // Without this guard, anyone holding a "forgot password" link could
+  // use it to log in directly, without ever changing the password.
+  if (rawToken.startsWith(RESET_TOKEN_PREFIX)) return null;
+
   const existing = await db.refreshToken.findUnique({
     where:   { token: rawToken },
     include: { user: true },

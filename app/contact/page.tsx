@@ -10,19 +10,19 @@ const SOCIALS = [
 const CONTACT_INFO = [
   {
     title: "Email Us",
-    value: "hello@novaa.co.za",
-    href: "mailto:hello@novaa.co.za",
-    description: "We respond within 24 hours",
+    value: "info@novaa.co.za",
+    href: "mailto:info@novaa.co.za",
+    
   },
   {
     title: "Call / WhatsApp",
-    value: "+27 67 187 9525",
-    href: "https://wa.me/27671879525",
-    description: "Mon–Fri, 9am–5pm SAST",
+    value: "+27 61 499 0918",
+    href: "https://wa.me/276164990918",
+    description: "Mon–Fri, 9am–5pm ",
   },
   {
     title: "Location",
-    value: "Pretoria, South Africa",
+    value: "Johannesburg North, South Africa",
     href: "#",
     description: "Online store – nationwide shipping",
   },

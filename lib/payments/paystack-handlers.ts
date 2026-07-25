@@ -34,15 +34,24 @@ export async function handleInitiatePaystackPayment(req: NextRequest) {
 export async function handleVerifyPaystackPayment(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return unauthorized();
+
   const body = await req.json().catch(() => null);
   if (!body?.reference) return badRequest("reference is required");
+
   const tx = await verifyPaystackTransaction(body.reference);
   if (tx.status !== "success") return badRequest(`Payment ${tx.status}. Please try again.`);
+
   const payment = await db.payment.findFirst({
     where: { transactionId: body.reference },
     include: { order: { include: { items: true } } },
   });
   if (!payment) return badRequest("Order not found for this transaction");
+
+  // 🔒 Ownership check — must happen before any status mutation below.
+  // Without this, any authenticated user who knows/guesses a reference
+  // could verify (and thus mark PAID) an order that isn't theirs.
+  if (payment.order.userId !== user.sub) return unauthorized();
+
   if (payment.status === "SUCCESS") return ok({ orderId: payment.orderId }, "Already processed");
   if (tx.amount !== Number(payment.order.total)) {
     console.error(`[Paystack Verify] Amount mismatch`);
