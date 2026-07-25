@@ -4,7 +4,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/authStore";
 import { ordersApi, Order } from "@/lib/api";
 
 // ─── HELPERS ──────────────────────────────────────────────────
@@ -103,10 +102,9 @@ function StatusTimeline({ status }: { status: string }) {
 
 // ─── PAGE ─────────────────────────────────────────────────────
 export default function OrderDetailPage() {
-  const params            = useParams();
-  const router            = useRouter();
-  const { getValidToken } = useAuthStore();
-  const orderId           = params.id as string;
+  const params  = useParams();
+  const router  = useRouter();
+  const orderId = params.id as string;
 
   const [order, setOrder]         = useState<Order | null>(null);
   const [loading, setLoading]     = useState(true);
@@ -116,23 +114,33 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const token = await getValidToken();
-      if (!token) { router.push("/auth/login?redirect=/account/orders"); return; }
-      const { data, error } = await ordersApi.get(orderId, token);
+      // No manual token handling — the httpOnly ws_access cookie is sent
+      // automatically by the browser on this same-origin request. This
+      // route is already gated server-side by proxy.ts, so an
+      // unauthenticated visitor is redirected to /auth/login before this
+      // component ever renders. The 401 branch below is just a fallback
+      // in case a session expires while the page is already open.
+      const { data, error, status } = await ordersApi.get(orderId);
+      if (status === 401) {
+        router.push(`/auth/login?redirect=/account/orders/${orderId}`);
+        return;
+      }
       if (error || !data) setNotFound(true);
       else setOrder(data);
       setLoading(false);
     }
     load();
-  }, [orderId]);
+  }, [orderId, router]);
 
   async function handleCancel() {
     if (!confirm("Cancel this order? Stock will be restored.")) return;
     setCancelling(true); setCancelError("");
-    const token = await getValidToken();
-    if (!token) return;
-    const { error } = await ordersApi.cancel(orderId, token);
+    const { error, status } = await ordersApi.cancel(orderId);
     setCancelling(false);
+    if (status === 401) {
+      router.push(`/auth/login?redirect=/account/orders/${orderId}`);
+      return;
+    }
     if (error) return setCancelError(error);
     setOrder(o => o ? { ...o, status: "CANCELLED" } : o);
   }
