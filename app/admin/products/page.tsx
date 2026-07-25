@@ -86,6 +86,44 @@ function CategoryModal({ onClose, onCreated }: { onClose: () => void; onCreated:
 interface VF { id?: string; sku: string; price: string; stock: string; color: string; length: string; density: string; laceType: string; capSize: string; }
 const EMPTY_V: VF = { sku: "", price: "", stock: "", color: "", length: "", density: "", laceType: "", capSize: "" };
 
+// Validates one or more variant rows before they're sent to the API.
+// Returns a human-readable error for the first invalid field found, or null if all valid.
+function validateVariants(variants: VF[], startIndex = 0): string | null {
+  for (let i = 0; i < variants.length; i++) {
+    const v = variants[i];
+    const label = `Variant ${startIndex + i + 1}`;
+
+    if (!v.sku || v.sku.trim().length < 3) {
+      return `${label}: SKU must be at least 3 characters`;
+    }
+
+    const price = parseFloat(v.price);
+    if (!v.price || isNaN(price) || price <= 0) {
+      return `${label}: price must be a valid amount greater than 0`;
+    }
+
+    const stock = parseInt(v.stock, 10);
+    if (v.stock === "" || isNaN(stock) || stock < 0) {
+      return `${label}: stock must be a valid number (0 or more)`;
+    }
+  }
+
+  // Catch duplicate SKUs within this submission itself — the backend
+  // only checks against SKUs that already exist in the database, so
+  // two new rows sharing a SKU would otherwise pass validation and
+  // fail later with a raw Prisma unique-constraint error.
+  const skus = variants.map(v => v.sku.trim().toLowerCase());
+  const seen = new Set<string>();
+  for (let i = 0; i < skus.length; i++) {
+    if (seen.has(skus[i])) {
+      return `Duplicate SKU "${variants[i].sku.trim()}" — each variant needs a unique SKU`;
+    }
+    seen.add(skus[i]);
+  }
+
+  return null;
+}
+
 function VariantRow({ v, i, onChange, onRemove, onSave, isSaved }: {
   v: VF; i: number;
   onChange: (i: number, f: keyof VF, val: string) => void;
@@ -318,10 +356,16 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   async function saveVariant(idx: number) {
     if (!product) return;
     const v = variants[idx];
+
+    // Validate this single row before sending — catches blank/invalid
+    // price or stock with a clear message instead of a generic 400.
+    const variantError = validateVariants([v], idx);
+    if (variantError) { setError(variantError); return; }
+
     const body = {
-      sku: v.sku,
-      price:    Math.round(parseFloat(v.price || "0") * 100),
-      stock:    parseInt(v.stock || "0"),
+      sku: v.sku.trim(),
+      price:    Math.round(parseFloat(v.price) * 100),
+      stock:    parseInt(v.stock, 10),
       color:    v.color    || undefined,
       length:   v.length   || undefined,
       density:  v.density  || undefined,
@@ -343,7 +387,16 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name || !slug || !categoryId) return setError("Name, slug and category are required");
+    if (description.trim().length < 10) return setError("Description must be at least 10 characters");
     if (!isEdit && variants.length === 0) return setError("At least one variant is required");
+
+    // Validate every variant row before creating a new product —
+    // prevents blank/invalid price or stock from silently becoming
+    // 0/NaN and getting rejected by the backend with no useful feedback.
+    if (!isEdit) {
+      const variantError = validateVariants(variants);
+      if (variantError) return setError(variantError);
+    }
 
     setLoading(true); setError("");
 
@@ -356,9 +409,9 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
       onSaved();
     } else {
       const variantData = variants.map(v => ({
-        sku:      v.sku,
-        price:    Math.round(parseFloat(v.price || "0") * 100),
-        stock:    parseInt(v.stock || "0"),
+        sku:      v.sku.trim(),
+        price:    Math.round(parseFloat(v.price) * 100),
+        stock:    parseInt(v.stock, 10),
         color:    v.color    || undefined,
         length:   v.length   || undefined,
         density:  v.density  || undefined,

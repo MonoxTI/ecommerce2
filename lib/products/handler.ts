@@ -1,4 +1,4 @@
-// lib/products/handlers.ts
+// lib/products/handler.ts
 // All product-related API logic.
 // Prices are stored in CENTS (integers) — divide by 100 for display.
 
@@ -84,7 +84,7 @@ export async function handleGetProducts(req: NextRequest) {
   } = query.data;
 
   // Build dynamic WHERE clause
- const where: any = { isActive: true }; // isActive filter added after running: npx prisma db push
+  const where: any = { isActive: true };
 
   if (category) {
     where.category = { slug: category };
@@ -159,7 +159,7 @@ export async function handleGetProduct(
   slug: string
 ) {
   const product = await db.product.findUnique({
-    where: { slug, isActive: true }, // isActive filter added after running: npx prisma db push
+    where: { slug, isActive: true },
     include: {
       category: { select: { id: true, name: true, slug: true } },
       images:   { select: { id: true, url: true } },
@@ -226,8 +226,26 @@ export async function handleCreateProduct(req: NextRequest) {
   });
   if (!category) return badRequest("Category not found");
 
-  // Check all SKUs are unique
+  // Check for duplicate SKUs *within this submission itself*.
+  // The DB lookup below only catches SKUs that already exist as rows —
+  // it can't catch two new variants in the same payload sharing a SKU,
+  // which would otherwise pass that check (0 existing matches) and then
+  // blow up on the actual insert with a raw Prisma P2002 error.
   const skus = variants.map((v) => v.sku);
+  const seen = new Set<string>();
+  const duplicatesInPayload = new Set<string>();
+  for (const sku of skus) {
+    const key = sku.toLowerCase();
+    if (seen.has(key)) duplicatesInPayload.add(sku);
+    seen.add(key);
+  }
+  if (duplicatesInPayload.size > 0) {
+    return conflict(
+      `Duplicate SKU(s) in this submission: ${[...duplicatesInPayload].join(", ")}`
+    );
+  }
+
+  // Check all SKUs are unique against existing DB rows
   const existingVariants = await db.productVariant.findMany({
     where: { sku: { in: skus } },
     select: { sku: true },
@@ -318,10 +336,10 @@ export async function handleDeleteProduct(
   // Check if any variant has been ordered
   const hasOrders = product.variants.some((v) => v.orderItems.length > 0);
 
- if (hasOrders) {
-  await db.product.update({ where: { id }, data: { isActive: false } });
-  return ok(null, "Product hidden successfully");
-}
+  if (hasOrders) {
+    await db.product.update({ where: { id }, data: { isActive: false } });
+    return ok(null, "Product hidden successfully");
+  }
 
   // Safe to hard delete — no orders reference this product
   await db.product.delete({ where: { id } });
