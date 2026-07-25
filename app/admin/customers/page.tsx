@@ -1,30 +1,26 @@
 "use client";
 // app/admin/customers/page.tsx
 import { useEffect, useState } from "react";
-import { useAuthStore } from "@/store/authStore";
 import { adminApi, Customer } from "@/lib/api";
 
 export default function AdminCustomersPage() {
-  const { token }       = useAuthStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState("");
   const [toggling, setToggling]   = useState<string | null>(null);
 
   async function load(q = "") {
-    if (!token) return;
     setLoading(true);
-    const { data } = await adminApi.customers(token, q ? { search: q } : {});
+    const { data } = await adminApi.customers(q ? { search: q } : {});
     if (data) setCustomers(data.items);
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, [token]);
+  useEffect(() => { load(); }, []);
 
   async function toggle(id: string, current: boolean) {
-    if (!token) return;
     setToggling(id);
-    await adminApi.toggleCustomer(id, !current, token);
+    await adminApi.toggleCustomer(id, !current);
     setCustomers(cs => cs.map(c => c.id === id ? { ...c, isActive: !current } : c));
     setToggling(null);
   }

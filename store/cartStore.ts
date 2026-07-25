@@ -6,11 +6,11 @@ import { cartApi, Cart } from "@/lib/api";
 interface CartState {
   cart:       Cart | null;
   isLoading:  boolean;
-  fetchCart:  (token: string) => Promise<void>;
-  addItem:    (variantId: string, quantity: number, token: string) => Promise<string | null>;
-  updateItem: (itemId: string, quantity: number, token: string) => Promise<void>;
-  removeItem: (itemId: string, token: string) => Promise<void>;
-  clearCart:  (token: string) => Promise<void>;
+  fetchCart:  () => Promise<void>;
+  addItem:    (variantId: string, quantity: number) => Promise<string | null>;
+  updateItem: (itemId: string, quantity: number) => Promise<void>;
+  removeItem: (itemId: string) => Promise<void>;
+  clearCart:  () => Promise<void>;
   reset:      () => void;
 }
 
@@ -18,34 +18,34 @@ export const useCartStore = create<CartState>((set) => ({
   cart:      null,
   isLoading: false,
 
-  fetchCart: async (token) => {
+  fetchCart: async () => {
     set({ isLoading: true });
-    const { data, error } = await cartApi.get(token);
+    const { data, error } = await cartApi.get();
     if (data) set({ cart: data });
     // If 401, cart stays null — the page will handle the redirect
     set({ isLoading: false });
   },
 
-  addItem: async (variantId, quantity, token) => {
+  addItem: async (variantId, quantity) => {
     set({ isLoading: true });
-    const { data, error } = await cartApi.add({ variantId, quantity }, token);
+    const { data, error } = await cartApi.add({ variantId, quantity });
     if (data) set({ cart: data });
     set({ isLoading: false });
     return error;
   },
 
-  updateItem: async (itemId, quantity, token) => {
-    const { data } = await cartApi.update(itemId, quantity, token);
+  updateItem: async (itemId, quantity) => {
+    const { data } = await cartApi.update(itemId, quantity);
     if (data) set({ cart: data });
   },
 
-  removeItem: async (itemId, token) => {
-    const { data } = await cartApi.remove(itemId, token);
+  removeItem: async (itemId) => {
+    const { data } = await cartApi.remove(itemId);
     if (data) set({ cart: data });
   },
 
-  clearCart: async (token) => {
-    const { data } = await cartApi.clear(token);
+  clearCart: async () => {
+    const { data } = await cartApi.clear();
     if (data) set({ cart: data });
   },
 

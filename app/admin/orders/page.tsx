@@ -1,7 +1,6 @@
 "use client";
 // app/admin/orders/page.tsx
 import { useEffect, useState } from "react";
-import { useAuthStore } from "@/store/authStore";
 import { adminApi, Order } from "@/lib/api";
 
 function formatPrice(cents: number) {
@@ -18,7 +17,6 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function AdminOrdersPage() {
-  const { token }     = useAuthStore();
   const [orders, setOrders]       = useState<Order[]>([]);
   const [loading, setLoading]     = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
@@ -29,31 +27,30 @@ export default function AdminOrdersPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   async function load() {
-    if (!token) return;
     setLoading(true);
     const params: Record<string, string> = {};
     if (statusFilter) params.status = statusFilter;
     if (search) params.search = search;
-    const { data } = await adminApi.orders(token, params);
+    const { data } = await adminApi.orders(params);
     if (data) setOrders(data.items);
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, [token, statusFilter]);
+  useEffect(() => { load(); }, [statusFilter]);
 
   async function updateStatus() {
-    if (!token || !selected || !newStatus) return;
+    if (!selected || !newStatus) return;
     setActionLoading(true);
-    await adminApi.updateOrderStatus(selected.id, newStatus, token);
+    await adminApi.updateOrderStatus(selected.id, newStatus);
     setActionLoading(false);
     setSelected(null);
     load();
   }
 
   async function addTracking() {
-    if (!token || !selected || !tracking.trackingNumber) return;
+    if (!selected || !tracking.trackingNumber) return;
     setActionLoading(true);
-    await adminApi.addTracking(selected.id, tracking, token);
+    await adminApi.addTracking(selected.id, tracking);
     setActionLoading(false);
     setSelected(null);
     load();

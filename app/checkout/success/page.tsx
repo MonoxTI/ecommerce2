@@ -4,13 +4,10 @@
 
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/authStore";
+import { useSearchParams } from "next/navigation";
 
 function SuccessContent() {
   const params          = useSearchParams();
-  const router          = useRouter();
-  const { getValidToken } = useAuthStore();
   const [orderId, setOrderId] = useState<string | null>(() => params.get("orderId"));
 
   const [status, setStatus]   = useState<"verifying" | "success" | "failed">("verifying");
@@ -34,12 +31,9 @@ function SuccessContent() {
       }
 
       try {
-        const token = await getValidToken();
-        if (!token) { router.push("/auth/login"); return; }
-
         const res = await fetch("/api/payments/verify-paystack", {
           method:  "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json" },
           body:    JSON.stringify({ reference }),
           credentials: "include",
         });

@@ -5,7 +5,6 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { productsApi, cartApi, Product, Category } from "@/lib/api";
-import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
@@ -113,7 +112,6 @@ function FilterGroup({ title, children }: { title: string; children: React.React
 // ─── PAGE ─────────────────────────────────────────────────────
 
 function ShopContent() {
-  const { token }   = useAuthStore();
   const { addItem } = useCartStore();
 
   const [products, setProducts]     = useState<Product[]>([]);
@@ -187,8 +185,7 @@ function ShopContent() {
   async function handleAddToCart(product: Product) {
     const firstVariant = product.variants.find(v => v.stock > 0);
     if (!firstVariant) return;
-    if (!token) { window.location.href = "/auth/login"; return; }
-    const error = await addItem(firstVariant.id, 1, token);
+    const error = await addItem(firstVariant.id, 1);
     const msg = error ? error : `${product.name} added to bag`;
     setToast(msg);
     setToastVisible(true);
@@ -356,7 +353,7 @@ function ShopContent() {
                         : "border-[#E8E0D4] text-[#8C7B6B] hover:border-[#2C1F14] hover:text-[#2C1F14]"
                     }`}
                   >
-                    {len}"
+                    {len}
                   </button>
                 ))}
               </div>
@@ -462,7 +459,7 @@ function ShopContent() {
                 {LENGTHS.map(len => (
                   <button key={len} onClick={() => toggleFilter("length", len)}
                     className={`w-12 py-1.5 text-xs border transition-all ${activeLengths.includes(len) ? "border-[#2C1F14] bg-[#2C1F14] text-[#FAF8F5]" : "border-[#E8E0D4] text-[#8C7B6B]"}`}>
-                    {len}"
+                    {len}
                   </button>
                 ))}
               </div>
@@ -475,7 +472,6 @@ function ShopContent() {
         </div>
       )}
 
-    
     </div>
   );
 }

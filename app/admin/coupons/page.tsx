@@ -1,11 +1,9 @@
 "use client";
 // app/admin/coupons/page.tsx
 import { useEffect, useState } from "react";
-import { useAuthStore } from "@/store/authStore";
 import { adminApi, Coupon } from "@/lib/api";
 
 export default function AdminCouponsPage() {
-  const { token }     = useAuthStore();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -14,18 +12,16 @@ export default function AdminCouponsPage() {
   const [error, setError] = useState("");
 
   async function load() {
-    if (!token) return;
     setLoading(true);
-    const { data } = await adminApi.coupons(token);
+    const { data } = await adminApi.coupons();
     if (data) setCoupons(data.items);
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, [token]);
+  useEffect(() => { load(); }, []);
 
   async function createCoupon(e: React.FormEvent) {
     e.preventDefault();
-    if (!token) return;
     setError(""); setCreating(true);
     const payload: any = {
       code:    form.code.toUpperCase(),
@@ -36,7 +32,7 @@ export default function AdminCouponsPage() {
     if (form.maxUses) payload.maxUses = Number(form.maxUses);
     if (form.expiresAt) payload.expiresAt = new Date(form.expiresAt).toISOString();
 
-    const { error } = await adminApi.createCoupon(payload, token);
+    const { error } = await adminApi.createCoupon(payload);
     setCreating(false);
     if (error) return setError(error);
     setShowForm(false);
@@ -45,8 +41,8 @@ export default function AdminCouponsPage() {
   }
 
   async function deleteCoupon(id: string) {
-    if (!token || !confirm("Delete this coupon?")) return;
-    await adminApi.deleteCoupon(id, token);
+    if (!confirm("Delete this coupon?")) return;
+    await adminApi.deleteCoupon(id);
     setCoupons(cs => cs.filter(c => c.id !== id));
   }
 

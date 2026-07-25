@@ -3,9 +3,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { productsApi, Product } from "@/lib/api";
-import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import ReviewForm from "@/components/ReviewForm";
 
@@ -25,9 +24,7 @@ function Stars({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg" }) 
 // ─── PAGE ─────────────────────────────────────────────────────
 export default function ProductPage() {
   const params              = useParams();
-  const router              = useRouter();
   const slug                = params.slug as string;
-  const { getValidToken }   = useAuthStore();
   const { addItem }         = useCartStore();
 
   const [product, setProduct]       = useState<Product | null>(null);
@@ -123,13 +120,7 @@ export default function ProductPage() {
     setCartState("loading");
     setCartError("");
 
-    const token = await getValidToken();
-    if (!token) {
-      router.push(`/auth/login?redirect=/shop/${slug}`);
-      return;
-    }
-
-    const error = await addItem(selectedVariant.id, quantity, token);
+    const error = await addItem(selectedVariant.id, quantity);
     if (error) {
       setCartState("error");
       setCartError(error);
@@ -271,7 +262,7 @@ export default function ProductPage() {
             {lengthsList.length > 0 && (
               <div>
                 <p className="text-[0.72rem] tracking-[0.12em] uppercase text-[#666666] mb-3 font-cormorant">
-                  Length: <span className="text-black font-medium">{selectedLength}"</span>
+                  Length: <span className="text-black font-medium">{selectedLength}</span>
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {lengthsList.map((length) => {
@@ -289,7 +280,7 @@ export default function ProductPage() {
                               ? "border-black/10 text-[#666666] opacity-40 cursor-not-allowed line-through"
                               : "border-black/10 text-[#666666] hover:border-black hover:text-black"
                         }`}>
-                        {length}"
+                        {length}
                       </button>
                     );
                   })}

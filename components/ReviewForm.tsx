@@ -3,7 +3,6 @@
 // Drop this into the reviews tab of app/shop/[slug]/page.tsx
 
 import { useState } from "react";
-import { useAuthStore } from "@/store/authStore";
 
 interface Props {
   slug:      string;
@@ -11,7 +10,6 @@ interface Props {
 }
 
 export default function ReviewForm({ slug, onSuccess }: Props) {
-  const { getValidToken } = useAuthStore();
   const [rating, setRating]   = useState(0);
   const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState("");
@@ -24,12 +22,9 @@ export default function ReviewForm({ slug, onSuccess }: Props) {
     if (rating === 0) return setError("Please select a star rating");
     setError(""); setLoading(true);
 
-    const token = await getValidToken();
-    if (!token) return setError("Please sign in to leave a review");
-
     const res = await fetch(`/api/products/${slug}/reviews`, {
       method:  "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ rating, comment: comment.trim() || undefined }),
       credentials: "include",
     });

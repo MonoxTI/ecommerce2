@@ -13,7 +13,6 @@ function formatPrice(cents: number) {
 
 export default function CheckoutPage() {
   const router            = useRouter();
-  const { getValidToken } = useAuthStore();
   const { cart }          = useCartStore();
 
   const [addresses, setAddresses]     = useState<Address[]>([]);
@@ -26,9 +25,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     async function init() {
-      const token = await getValidToken();
-      if (!token) { router.push("/auth/login?redirect=/checkout"); return; }
-      const { data } = await addressesApi.list(token);
+      const { data } = await addressesApi.list();
       if (data) { setAddresses(data); if (data.length > 0) setSelectedAddr(data[0].id); }
     }
     init();
@@ -46,17 +43,14 @@ export default function CheckoutPage() {
     if (!selectedAddr) return setError("Please select a shipping address");
     setLoading(true); setError("");
 
-    const token = await getValidToken();
-    if (!token) { router.push("/auth/login?redirect=/checkout"); return; }
-
     const { data: order, error: orderErr } = await ordersApi.checkout(
-      { addressId: selectedAddr, couponCode: couponData ? couponCode : undefined }, token
+      { addressId: selectedAddr, couponCode: couponData ? couponCode : undefined }
     );
     if (orderErr || !order) { setLoading(false); return setError(orderErr ?? "Failed to create order"); }
 
     const res = await fetch("/api/payments/initiate", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId: order.orderId }),
       credentials: "include",
     });

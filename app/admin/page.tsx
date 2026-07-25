@@ -52,7 +52,6 @@ function StatCard({
 
 // ─── MAIN PAGE ───────────────────────────────────────────────
 export default function AdminDashboardPage() {
-  const { getValidToken }     = useAuthStore();
   const [stats, setStats]     = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
@@ -76,9 +75,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const token = await getValidToken();
-      if (!token) { setError("Session expired. Please sign in again."); setLoading(false); return; }
-      const { data, error } = await adminApi.stats(token);
+      const { data, error } = await adminApi.stats();
       if (error) setError(error);
       else if (data) setStats(data);
       setLoading(false);

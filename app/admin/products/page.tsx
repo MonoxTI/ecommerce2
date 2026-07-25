@@ -2,7 +2,6 @@
 // app/admin/products/page.tsx
 
 import { useState, useEffect, useRef } from "react";
-import { useAuthStore } from "@/store/authStore";
 import { productsApi, Product, Category } from "@/lib/api";
 
 // ─── HELPERS ──────────────────────────────────────────────────
@@ -15,10 +14,10 @@ function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-async function apiFetch(path: string, options: RequestInit = {}, token: string) {
+async function apiFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(path, {
     ...options,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(options.headers ?? {}) },
+    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
     credentials: "include",
   });
   const json = await res.json();
@@ -49,7 +48,7 @@ function OutlineBtn({ className = "", ...p }: React.ButtonHTMLAttributes<HTMLBut
 
 // ─── CATEGORY MODAL ───────────────────────────────────────────
 
-function CategoryModal({ token, onClose, onCreated }: { token: string; onClose: () => void; onCreated: (cat: Category) => void }) {
+function CategoryModal({ onClose, onCreated }: { onClose: () => void; onCreated: (cat: Category) => void }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [loading, setLoading] = useState(false);
@@ -58,7 +57,7 @@ function CategoryModal({ token, onClose, onCreated }: { token: string; onClose: 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true); setError("");
-    const { ok, data, error } = await apiFetch("/api/categories", { method: "POST", body: JSON.stringify({ name, slug }) }, token);
+    const { ok, data, error } = await apiFetch("/api/categories", { method: "POST", body: JSON.stringify({ name, slug }) });
     setLoading(false);
     if (!ok) return setError(error ?? "Failed");
     onCreated(data); onClose();
@@ -87,12 +86,12 @@ function CategoryModal({ token, onClose, onCreated }: { token: string; onClose: 
 interface VF { id?: string; sku: string; price: string; stock: string; color: string; length: string; density: string; laceType: string; capSize: string; }
 const EMPTY_V: VF = { sku: "", price: "", stock: "", color: "", length: "", density: "", laceType: "", capSize: "" };
 
-function VariantRow({ v, i, onChange, onRemove, onSave, isSaved, token }: {
+function VariantRow({ v, i, onChange, onRemove, onSave, isSaved }: {
   v: VF; i: number;
   onChange: (i: number, f: keyof VF, val: string) => void;
   onRemove: (i: number) => void;
   onSave?: (i: number) => Promise<void>;
-  isSaved: boolean; token: string;
+  isSaved: boolean;
 }) {
   const [saving, setSaving] = useState(false);
   const [stockMode, setStockMode] = useState<"add"|"set">("add");
@@ -112,7 +111,7 @@ function VariantRow({ v, i, onChange, onRemove, onSave, isSaved, token }: {
     setStockLoading(true);
     const { ok, data } = await apiFetch(`/api/admin/inventory/${v.id}`, {
       method: "PATCH", body: JSON.stringify({ quantity: Number(stockQty), set: stockMode === "set" }),
-    }, token);
+    });
     setStockLoading(false);
     if (ok) {
       onChange(i, "stock", String(data.stock));
@@ -175,8 +174,8 @@ function VariantRow({ v, i, onChange, onRemove, onSave, isSaved, token }: {
 
 // ─── IMAGE MANAGER ────────────────────────────────────────────
 
-function ImageManager({ productId, images, token, onUpdate }: {
-  productId: string; images: { id: string; url: string }[]; token: string;
+function ImageManager({ productId, images, onUpdate }: {
+  productId: string; images: { id: string; url: string }[];
   onUpdate: (imgs: { id: string; url: string }[]) => void;
 }) {
   const [url, setUrl]         = useState("");
@@ -189,7 +188,7 @@ function ImageManager({ productId, images, token, onUpdate }: {
     if (!url.trim()) return;
     setLoading(true); setError("");
     const { ok, data, error } = await apiFetch(`/api/admin/products/${productId}/images`,
-      { method: "POST", body: JSON.stringify({ url: url.trim() }) }, token);
+      { method: "POST", body: JSON.stringify({ url: url.trim() }) });
     setLoading(false);
     if (!ok) return setError(error ?? "Failed to add image");
     onUpdate([...images, data]); setUrl("");
@@ -203,7 +202,6 @@ function ImageManager({ productId, images, token, onUpdate }: {
     form.append("file", file);
     const res = await fetch(`/api/admin/products/${productId}/images`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
       body: form,
       credentials: "include",
     });
@@ -216,7 +214,7 @@ function ImageManager({ productId, images, token, onUpdate }: {
 
   async function del(imageId: string) {
     const { ok } = await apiFetch(`/api/admin/products/${productId}/images/${imageId}`,
-      { method: "DELETE" }, token);
+      { method: "DELETE" });
     if (ok) onUpdate(images.filter(img => img.id !== imageId));
   }
 
@@ -282,8 +280,8 @@ function ImageManager({ productId, images, token, onUpdate }: {
 
 // ─── PRODUCT DRAWER ───────────────────────────────────────────
 
-function ProductDrawer({ product, categories, token, onClose, onSaved }: {
-  product: Product | null; categories: Category[]; token: string;
+function ProductDrawer({ product, categories, onClose, onSaved }: {
+  product: Product | null; categories: Category[];
   onClose: () => void; onSaved: () => void;
 }) {
   const isEdit = !!product;
@@ -332,10 +330,10 @@ function ProductDrawer({ product, categories, token, onClose, onSaved }: {
     };
 
     if (v.id) {
-      const { ok, error } = await apiFetch(`/api/admin/products/${product.id}/variants/${v.id}`, { method: "PATCH", body: JSON.stringify(body) }, token);
+      const { ok, error } = await apiFetch(`/api/admin/products/${product.id}/variants/${v.id}`, { method: "PATCH", body: JSON.stringify(body) });
       if (!ok) { setError(error ?? "Failed to update variant"); return; }
     } else {
-      const { ok, data, error } = await apiFetch(`/api/admin/products/${product.id}/variants`, { method: "POST", body: JSON.stringify(body) }, token);
+      const { ok, data, error } = await apiFetch(`/api/admin/products/${product.id}/variants`, { method: "POST", body: JSON.stringify(body) });
       if (!ok) { setError(error ?? "Failed to create variant"); return; }
       setVariants(vs => vs.map((variant, i) => i === idx ? { ...variant, id: data.id } : variant));
     }
@@ -352,7 +350,7 @@ function ProductDrawer({ product, categories, token, onClose, onSaved }: {
     if (isEdit) {
       const { ok, error } = await apiFetch(`/api/admin/products/${product.id}`, {
         method: "PATCH", body: JSON.stringify({ name, slug, description, brand, categoryId }),
-      }, token);
+      });
       setLoading(false);
       if (!ok) return setError(error ?? "Failed to update");
       onSaved();
@@ -369,7 +367,7 @@ function ProductDrawer({ product, categories, token, onClose, onSaved }: {
       }));
       const { ok, error } = await apiFetch("/api/admin/products", {
         method: "POST", body: JSON.stringify({ name, slug, description, brand, categoryId, variants: variantData }),
-      }, token);
+      });
       setLoading(false);
       if (!ok) return setError(error ?? "Failed to create product");
       onSaved();
@@ -484,7 +482,6 @@ function ProductDrawer({ product, categories, token, onClose, onSaved }: {
                     onRemove={i => setVariants(vs => vs.filter((_, j) => j !== i))}
                     onSave={isEdit ? saveVariant : undefined}
                     isSaved={isEdit && !!v.id}
-                    token={token}
                   />
                 ))
               )}
@@ -502,7 +499,6 @@ function ProductDrawer({ product, categories, token, onClose, onSaved }: {
             <ImageManager
               productId={product.id}
               images={images}
-              token={token}
               onUpdate={setImages}
             />
           )}
@@ -520,7 +516,7 @@ function ProductDrawer({ product, categories, token, onClose, onSaved }: {
       </div>
 
       {showCatModal && (
-        <CategoryModal token={token} onClose={() => setShowCatModal(false)}
+        <CategoryModal onClose={() => setShowCatModal(false)}
           onCreated={cat => { setLocalCats(cs => [...cs, cat]); setCategoryId(cat.id); }} />
       )}
     </>
@@ -530,28 +526,21 @@ function ProductDrawer({ product, categories, token, onClose, onSaved }: {
 // ─── MAIN PAGE ────────────────────────────────────────────────
 
 export default function AdminProductsPage() {
-  const { getValidToken }         = useAuthStore();
   const [products, setProducts]   = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState("");
-  const [token, setToken]         = useState("");
   const [drawer, setDrawer]       = useState<"closed"|"new"|"edit">("closed");
   const [selected, setSelected]   = useState<Product | null>(null);
   const [deleting, setDeleting]   = useState<string | null>(null);
   const [total, setTotal]         = useState(0);
 
   useEffect(() => {
-    getValidToken().then(t => { if (t) setToken(t); });
-  }, []);
-
-  useEffect(() => {
-    if (!token) return;
     loadProducts();
     productsApi.getCategories().then(({ data }) => {
       if (data) setCategories(Array.isArray(data) ? data : []);
     });
-  }, [token]);
+  }, []);
 
   async function loadProducts(q = "") {
     setLoading(true);
@@ -569,7 +558,7 @@ export default function AdminProductsPage() {
     await apiFetch(`/api/admin/products/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ isActive: !currentlyActive }),
-    }, token);
+    });
     setDeleting(null);
     loadProducts(search);
   }
@@ -577,7 +566,7 @@ export default function AdminProductsPage() {
   async function handleHardDelete(id: string, name: string) {
     if (!confirm(`Permanently delete "${name}"?\n\nThis cannot be undone. Only works if the product has no orders.`)) return;
     setDeleting(id);
-    const { ok, error } = await apiFetch(`/api/admin/products/${id}`, { method: "DELETE" }, token);
+    const { ok, error } = await apiFetch(`/api/admin/products/${id}`, { method: "DELETE" });
     setDeleting(null);
     if (!ok) {
       alert(error ?? "Cannot delete — this product has existing orders. Use Hide instead.");
@@ -683,11 +672,10 @@ export default function AdminProductsPage() {
       )}
 
       {/* Drawer */}
-      {drawer !== "closed" && token && (
+      {drawer !== "closed" && (
         <ProductDrawer
           product={drawer === "edit" ? selected : null}
           categories={categories}
-          token={token}
           onClose={() => { setDrawer("closed"); setSelected(null); }}
           onSaved={() => { setDrawer("closed"); setSelected(null); loadProducts(search); }}
         />

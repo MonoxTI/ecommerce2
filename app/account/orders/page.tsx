@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuthStore } from "@/store/authStore";
 import { ordersApi, Order } from "@/lib/api";
 
 // ─── HELPERS ──────────────────────────────────────────────────
@@ -46,20 +45,20 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function AccountOrdersPage() {
-  const { token } = useAuthStore();
   const [orders, setOrders]   = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    if (!token) return;
     setLoading(true);
-    ordersApi.list(token, page).then(({ data }) => {
+    // No token to check for — this page is already gated by proxy.ts,
+    // and the httpOnly cookie is sent automatically with this request.
+    ordersApi.list(page).then(({ data }) => {
       if (data) { setOrders(data.items); setTotalPages(data.meta.totalPages); }
       setLoading(false);
     });
-  }, [token, page]);
+  }, [page]);
 
   return (
     <div className={`min-h-screen ${colors.bg} pt-24 pb-16 font-cormorant`}>

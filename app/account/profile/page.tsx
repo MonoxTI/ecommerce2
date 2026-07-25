@@ -1,4 +1,3 @@
-// app/account/profile/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,10 +7,10 @@ import { useAuthStore } from "@/store/authStore";
 import { authApi, Address } from "@/lib/api";
 
 // ─── HELPERS ──────────────────────────────────────────────────
-async function apiFetch(path: string, options: RequestInit = {}, token: string) {
+async function apiFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(path, {
     ...options,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(options.headers ?? {}) },
+    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
     credentials: "include",
   });
   const json = await res.json();
@@ -176,16 +175,14 @@ function AddressCard({ address, onEdit, onDelete, deleting }: {
 // ─── PAGE ─────────────────────────────────────────────────────
 export default function ProfilePage() {
   const router  = useRouter();
-  const { user, getValidToken, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
 
   // Full user profile (from API — has phone + createdAt which JWT doesn't include)
   const [fullUser, setFullUser]   = useState<any>(null);
 
   useEffect(() => {
     async function loadProfile() {
-      const token = await getValidToken();
-      if (!token) return;
-      const { data } = await apiFetch("/api/auth/me", {}, token);
+      const { data } = await apiFetch("/api/auth/me", {});
       if (data?.id) setFullUser(data);
     }
     loadProfile();
@@ -209,9 +206,7 @@ export default function ProfilePage() {
   // Load addresses on mount
   useEffect(() => {
     async function load() {
-      const token = await getValidToken();
-      if (!token) return;
-      const { data } = await apiFetch("/api/addresses", {}, token);
+      const { data } = await apiFetch("/api/addresses", {});
       if (Array.isArray(data)) setAddresses(data);
       setAddrLoading(false);
     }
@@ -223,11 +218,9 @@ export default function ProfilePage() {
     e.preventDefault();
     setPwError(""); setPwSuccess("");
     if (pwForm.newPassword !== pwForm.confirm) return setPwError("Passwords do not match");
-    const token = await getValidToken();
-    if (!token) return;
     setPwLoading(true);
     const { error } = await authApi.changePassword(
-      { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }, token
+      { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }
     );
     setPwLoading(false);
     if (error) return setPwError(error);
@@ -238,13 +231,11 @@ export default function ProfilePage() {
   // ── Addresses ────────────────────────────────────────────
   async function handleSaveAddress(formData: typeof EMPTY_ADDR) {
     setSavingAddr(true); setAddrError("");
-    const token = await getValidToken();
-    if (!token) return setSavingAddr(false);
 
     if (editingAddr) {
       const { ok, data, error } = await apiFetch(
         `/api/addresses/${editingAddr.id}`,
-        { method: "PATCH", body: JSON.stringify(formData) }, token
+        { method: "PATCH", body: JSON.stringify(formData) }
       );
       setSavingAddr(false);
       if (!ok) return setAddrError(error ?? "Failed to update address");
@@ -253,7 +244,7 @@ export default function ProfilePage() {
     } else {
       const { ok, data, error } = await apiFetch(
         "/api/addresses",
-        { method: "POST", body: JSON.stringify(formData) }, token
+        { method: "POST", body: JSON.stringify(formData) }
       );
       setSavingAddr(false);
       if (!ok) return setAddrError(error ?? "Failed to add address");
@@ -265,9 +256,7 @@ export default function ProfilePage() {
   async function handleDeleteAddress(id: string) {
     if (!confirm("Delete this address?")) return;
     setDeletingId(id); setAddrError("");
-    const token = await getValidToken();
-    if (!token) return setDeletingId(null);
-    const { ok, error } = await apiFetch(`/api/addresses/${id}`, { method: "DELETE" }, token);
+    const { ok, error } = await apiFetch(`/api/addresses/${id}`, { method: "DELETE" });
     setDeletingId(null);
     if (!ok) return setAddrError(error ?? "Failed to delete address");
     setAddresses(prev => prev.filter(a => a.id !== id));

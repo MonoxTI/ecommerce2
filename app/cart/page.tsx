@@ -14,7 +14,6 @@ function formatPrice(cents: number) {
 
 export default function CartPage() {
   const router = useRouter();
-  const { token } = useAuthStore();
   const { cart, isLoading, fetchCart, updateItem, removeItem } = useCartStore();
 
   // Zustand persisted state hydrates async — wait for it before reading token
@@ -26,9 +25,8 @@ export default function CartPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (!token) return;
-    fetchCart(token);
-  }, [hydrated, token]);
+    fetchCart();
+  }, [hydrated]);
 
   // ── COLOR PALETTE (Cream / Black / White) ─────────────────
   const colors = {
@@ -66,7 +64,7 @@ export default function CartPage() {
   }
 
   // Not logged in
-  if (!token) {
+  if (!hydrated || (!cart && !isLoading)) {
     return (
       <div className={`min-h-screen ${colors.bg} flex items-center justify-center pt-20`}>
         <div className="text-center">
@@ -157,19 +155,19 @@ export default function CartPage() {
                     <div className="flex items-center justify-between mt-3">
                       <div className={`flex items-center border ${colors.border} font-cormorant`}>
                         <button 
-                          onClick={() => token && updateItem(item.id, item.quantity - 1, token)}
+                          onClick={() => updateItem(item.id, item.quantity - 1)}
                           className={`w-8 h-8 text-[#666666] ${colors.hover} transition-colors text-lg leading-none`}
                           aria-label="Decrease quantity"
                         >−</button>
                         <span className="w-8 text-center text-black text-sm font-medium">{item.quantity}</span>
                         <button 
-                          onClick={() => token && updateItem(item.id, item.quantity + 1, token)}
+                          onClick={() => updateItem(item.id, item.quantity + 1)}
                           className={`w-8 h-8 text-[#666666] ${colors.hover} transition-colors text-lg leading-none`}
                           aria-label="Increase quantity"
                         >+</button>
                       </div>
                       <button 
-                        onClick={() => token && removeItem(item.id, token)}
+                        onClick={() => removeItem(item.id)}
                         className={`${colors.textLight} hover:text-red-600 text-xs tracking-wider uppercase transition-colors font-cormorant`}
                       >
                         Remove

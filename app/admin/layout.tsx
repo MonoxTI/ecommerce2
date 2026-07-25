@@ -43,12 +43,12 @@ const colors = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router         = useRouter();
   const pathname       = usePathname();
-  const { user, token } = useAuthStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    if (!token) router.push("/login?redirect=/admin");
-    else if (user && user.role !== "ADMIN") router.push("/account");
-  }, [token, user]);
+    if (!user) router.push("/login?redirect=/admin");
+    else if (user.role !== "ADMIN") router.push("/account");
+  }, [user]);
 
   if (!user || user.role !== "ADMIN") return null;
 

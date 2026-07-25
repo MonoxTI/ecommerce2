@@ -1,7 +1,6 @@
 "use client";
 // app/admin/inventory/page.tsx
 import { useEffect, useState } from "react";
-import { useAuthStore } from "@/store/authStore";
 import { adminApi, InventoryItem, InventorySummary } from "@/lib/api";
 
 const STOCK_STYLES: Record<string, string> = {
@@ -15,12 +14,11 @@ const STOCK_STYLES: Record<string, string> = {
 
 interface StockModalProps {
   item:     InventoryItem;
-  token:    string;
   onClose:  () => void;
   onSaved:  (updated: InventoryItem) => void;
 }
 
-function AddStockModal({ item, token, onClose, onSaved }: StockModalProps) {
+function AddStockModal({ item, onClose, onSaved }: StockModalProps) {
   const [quantity, setQuantity] = useState("");
   const [mode, setMode]         = useState<"add" | "set">("add");
   const [loading, setLoading]   = useState(false);
@@ -34,7 +32,7 @@ function AddStockModal({ item, token, onClose, onSaved }: StockModalProps) {
 
     const res = await fetch(`/api/admin/inventory/${item.id}`, {
       method:  "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ quantity: qty, set: mode === "set" }),
       credentials: "include",
     });
@@ -133,7 +131,6 @@ function AddStockModal({ item, token, onClose, onSaved }: StockModalProps) {
 // ─── PAGE ─────────────────────────────────────────────────────
 
 export default function AdminInventoryPage() {
-  const { token }     = useAuthStore();
   const [items, setItems]           = useState<InventoryItem[]>([]);
   const [summary, setSummary]       = useState<InventorySummary | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -141,16 +138,15 @@ export default function AdminInventoryPage() {
   const [selected, setSelected]     = useState<InventoryItem | null>(null);
 
   async function load() {
-    if (!token) return;
     setLoading(true);
     const params: Record<string, string> = { threshold: "15" };
     if (outOfStockOnly) params.outOfStock = "true";
-    const { data } = await adminApi.inventory(token, params);
+    const { data } = await adminApi.inventory(params);
     if (data) { setItems(data.items); setSummary(data.summary); }
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, [token, outOfStockOnly]);
+  useEffect(() => { load(); }, [outOfStockOnly]);
 
   function handleStockSaved(updated: InventoryItem) {
     setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
@@ -281,10 +277,9 @@ export default function AdminInventoryPage() {
       </div>
 
       {/* Modal */}
-      {selected && token && (
+      {selected && (
         <AddStockModal
           item={selected}
-          token={token}
           onClose={() => setSelected(null)}
           onSaved={handleStockSaved}
         />
