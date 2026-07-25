@@ -6,6 +6,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<{ da
     const res = await fetch(`${BASE}${path}`, {
       ...options,
       headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
+      // The httpOnly ws_access cookie is sent automatically on every
+      // same-origin request because of this. Nothing in this file needs
+      // to read, store, or manually attach a token anymore.
       credentials: "include",
     });
     const json = await res.json();
@@ -16,18 +19,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<{ da
   }
 }
 
-const h = (token: string) => ({ Authorization: `Bearer ${token}` });
-
 export const authApi = {
   register: (b: { name: string; email: string; password: string; phone: string }) =>
     request("/api/auth/register", { method: "POST", body: JSON.stringify(b) }),
   login: (b: { email: string; password: string }) =>
-    request<{ user: User; accessToken: string }>("/api/auth/login", { method: "POST", body: JSON.stringify(b) }),
+    // accessToken removed from the response type — the server no longer
+    // sends it in the body (it's set as an httpOnly cookie instead).
+    request<{ user: User }>("/api/auth/login", { method: "POST", body: JSON.stringify(b) }),
   logout: () => request("/api/auth/logout", { method: "POST" }),
-  me: (token: string) => request<User>("/api/auth/me", { headers: h(token) }),
-  refresh: () => request<{ accessToken: string }>("/api/auth/refresh", { method: "POST" }),
-  changePassword: (b: { currentPassword: string; newPassword: string }, token: string) =>
-    request("/api/auth/change-password", { method: "POST", body: JSON.stringify(b), headers: h(token) }),
+  me: () => request<User>("/api/auth/me"),
+  refresh: () => request("/api/auth/refresh", { method: "POST" }),
+  changePassword: (b: { currentPassword: string; newPassword: string }) =>
+    request("/api/auth/change-password", { method: "POST", body: JSON.stringify(b) }),
 };
 
 export const productsApi = {
@@ -40,47 +43,46 @@ export const productsApi = {
 };
 
 export const cartApi = {
-  get: (token: string) => request<Cart>("/api/cart", { headers: h(token) }),
-  add: (b: { variantId: string; quantity: number }, token: string) =>
-    request<Cart>("/api/cart", { method: "POST", body: JSON.stringify(b), headers: h(token) }),
-  update: (itemId: string, quantity: number, token: string) =>
-    request<Cart>(`/api/cart/${itemId}`, { method: "PATCH", body: JSON.stringify({ quantity }), headers: h(token) }),
-  remove: (itemId: string, token: string) =>
-    request<Cart>(`/api/cart/${itemId}`, { method: "DELETE", headers: h(token) }),
-  clear: (token: string) => request<Cart>("/api/cart", { method: "DELETE", headers: h(token) }),
+  get: () => request<Cart>("/api/cart"),
+  add: (b: { variantId: string; quantity: number }) =>
+    request<Cart>("/api/cart", { method: "POST", body: JSON.stringify(b) }),
+  update: (itemId: string, quantity: number) =>
+    request<Cart>(`/api/cart/${itemId}`, { method: "PATCH", body: JSON.stringify({ quantity }) }),
+  remove: (itemId: string) =>
+    request<Cart>(`/api/cart/${itemId}`, { method: "DELETE" }),
+  clear: () => request<Cart>("/api/cart", { method: "DELETE" }),
 };
 
 export const ordersApi = {
-  list: (token: string, page = 1) =>
-    request<{ items: Order[]; meta: PaginationMeta }>(`/api/orders?page=${page}`, { headers: h(token) }),
- get: (id: string, token?: string) =>
-    request<Order>(`/api/orders/${id}`, token ? { headers: h(token) } : {}),
-  checkout: (b: { addressId: string; couponCode?: string }, token: string) =>
+  list: (page = 1) =>
+    request<{ items: Order[]; meta: PaginationMeta }>(`/api/orders?page=${page}`),
+  get: (id: string) => request<Order>(`/api/orders/${id}`),
+  checkout: (b: { addressId: string; couponCode?: string }) =>
     request<{ orderId: string; total: number; totalRands: number; shippingCost: number; discountAmount: number }>(
-      "/api/orders", { method: "POST", body: JSON.stringify(b), headers: h(token) }),
-  cancel: (id: string, token: string) =>
-    request(`/api/orders/${id}/cancel`, { method: "PATCH", headers: h(token) }),
+      "/api/orders", { method: "POST", body: JSON.stringify(b) }),
+  cancel: (id: string) =>
+    request(`/api/orders/${id}/cancel`, { method: "PATCH" }),
 };
 
 export const paymentsApi = {
   // PayFast (legacy)
-  initiate: (orderId: string, token: string) =>
+  initiate: (orderId: string) =>
     request<{ fields: Record<string, string>; actionUrl: string }>(
-      "/api/payments/initiate", { method: "POST", body: JSON.stringify({ orderId }), headers: h(token) }),
+      "/api/payments/initiate", { method: "POST", body: JSON.stringify({ orderId }) }),
 
   // Paystack
-  initiatePaystack: (orderId: string, token: string) =>
+  initiatePaystack: (orderId: string) =>
     request<{ authorizationUrl: string; reference: string }>(
-      "/api/payments/initiate-paystack", { method: "POST", body: JSON.stringify({ orderId }), headers: h(token) }),
+      "/api/payments/initiate-paystack", { method: "POST", body: JSON.stringify({ orderId }) }),
   verifyPaystack: (reference: string) =>
     request<{ status: string; orderId?: string }>(
       "/api/payments/verify-paystack", { method: "POST", body: JSON.stringify({ reference }) }),
 };
 
 export const addressesApi = {
-  list: (token: string) => request<Address[]>("/api/addresses", { headers: h(token) }),
-  create: (b: any, token: string) =>
-    request<Address>("/api/addresses", { method: "POST", body: JSON.stringify(b), headers: h(token) }),
+  list: () => request<Address[]>("/api/addresses"),
+  create: (b: any) =>
+    request<Address>("/api/addresses", { method: "POST", body: JSON.stringify(b) }),
 };
 
 export const couponsApi = {
@@ -90,39 +92,39 @@ export const couponsApi = {
 };
 
 export const adminApi = {
-  stats: (token: string) => request<AdminStats>("/api/admin/stats", { headers: h(token) }),
-  revenueChart: (token: string) =>
-    request<{ date: string; amount: number }[]>("/api/admin/stats/revenue", { headers: h(token) }),
-  orders: (token: string, params?: Record<string, string>) => {
+  stats: () => request<AdminStats>("/api/admin/stats"),
+  revenueChart: () =>
+    request<{ date: string; amount: number }[]>("/api/admin/stats/revenue"),
+  orders: (params?: Record<string, string>) => {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return request<{ items: Order[]; meta: PaginationMeta }>(`/api/admin/orders${qs}`, { headers: h(token) });
+    return request<{ items: Order[]; meta: PaginationMeta }>(`/api/admin/orders${qs}`);
   },
-  updateOrderStatus: (id: string, status: string, token: string) =>
-    request(`/api/admin/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }), headers: h(token) }),
-  addTracking: (id: string, b: { trackingNumber: string; trackingUrl?: string }, token: string) =>
-    request(`/api/admin/orders/${id}/tracking`, { method: "PATCH", body: JSON.stringify(b), headers: h(token) }),
-  customers: (token: string, params?: Record<string, string>) => {
+  updateOrderStatus: (id: string, status: string) =>
+    request(`/api/admin/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  addTracking: (id: string, b: { trackingNumber: string; trackingUrl?: string }) =>
+    request(`/api/admin/orders/${id}/tracking`, { method: "PATCH", body: JSON.stringify(b) }),
+  customers: (params?: Record<string, string>) => {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return request<{ items: Customer[]; meta: PaginationMeta }>(`/api/admin/customers${qs}`, { headers: h(token) });
+    return request<{ items: Customer[]; meta: PaginationMeta }>(`/api/admin/customers${qs}`);
   },
-  toggleCustomer: (id: string, isActive: boolean, token: string) =>
-    request(`/api/admin/customers/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }), headers: h(token) }),
-  inventory: (token: string, params?: Record<string, string>) => {
+  toggleCustomer: (id: string, isActive: boolean) =>
+    request(`/api/admin/customers/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }) }),
+  inventory: (params?: Record<string, string>) => {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return request<{ items: InventoryItem[]; summary: InventorySummary }>(`/api/admin/inventory${qs}`, { headers: h(token) });
+    return request<{ items: InventoryItem[]; summary: InventorySummary }>(`/api/admin/inventory${qs}`);
   },
-  coupons: (token: string) =>
-    request<{ items: Coupon[] }>("/api/admin/coupons", { headers: h(token) }),
-  createCoupon: (b: any, token: string) =>
-    request<Coupon>("/api/admin/coupons", { method: "POST", body: JSON.stringify(b), headers: h(token) }),
-  deleteCoupon: (id: string, token: string) =>
-    request(`/api/admin/coupons/${id}`, { method: "DELETE", headers: h(token) }),
-  reviews: (token: string, params?: Record<string, string>) => {
+  coupons: () =>
+    request<{ items: Coupon[] }>("/api/admin/coupons"),
+  createCoupon: (b: any) =>
+    request<Coupon>("/api/admin/coupons", { method: "POST", body: JSON.stringify(b) }),
+  deleteCoupon: (id: string) =>
+    request(`/api/admin/coupons/${id}`, { method: "DELETE" }),
+  reviews: (params?: Record<string, string>) => {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return request<{ items: Review[]; meta: PaginationMeta }>(`/api/admin/reviews${qs}`, { headers: h(token) });
+    return request<{ items: Review[]; meta: PaginationMeta }>(`/api/admin/reviews${qs}`);
   },
-  moderateReview: (id: string, action: "approve" | "reject", token: string) =>
-    request(`/api/admin/reviews/${id}`, { method: "PATCH", body: JSON.stringify({ action }), headers: h(token) }),
+  moderateReview: (id: string, action: "approve" | "reject") =>
+    request(`/api/admin/reviews/${id}`, { method: "PATCH", body: JSON.stringify({ action }) }),
 };
 
 // ─── TYPES ────────────────────────────────────────────────────
