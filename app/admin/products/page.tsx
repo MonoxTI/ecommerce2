@@ -20,7 +20,13 @@ async function apiFetch(path: string, options: RequestInit = {}) {
     headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
     credentials: "include",
   });
-  const json = await res.json();
+  let json: any = {};
+  try {
+    const text = await res.text();
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = { error: `Server returned ${res.status} ${res.statusText}` };
+  }
   return { ok: res.ok, data: json.data ?? json, error: json.error };
 }
 
@@ -48,7 +54,7 @@ function OutlineBtn({ className = "", ...p }: React.ButtonHTMLAttributes<HTMLBut
 
 // ─── CATEGORY MODAL ───────────────────────────────────────────
 
-function CategoryModal({ onClose, onCreated }: { onClose: () => void; onCreated: (cat: Category) => void }) {
+function CategoryModal({ onClose, onCreated }: {  onClose: () => void; onCreated: (cat: Category) => void }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [loading, setLoading] = useState(false);
@@ -83,52 +89,15 @@ function CategoryModal({ onClose, onCreated }: { onClose: () => void; onCreated:
 
 // ─── VARIANT ROW ──────────────────────────────────────────────
 
-interface VF { id?: string; sku: string; price: string; stock: string; color: string; length: string; density: string; laceType: string; capSize: string; }
-const EMPTY_V: VF = { sku: "", price: "", stock: "", color: "", length: "", density: "", laceType: "", capSize: "" };
+interface VF { id?: string; sku: string; price: string; stock: string; color: string; length: string; }
+const EMPTY_V: VF = { sku: "", price: "", stock: "", color: "", length: "" };
 
-// Validates one or more variant rows before they're sent to the API.
-// Returns a human-readable error for the first invalid field found, or null if all valid.
-function validateVariants(variants: VF[], startIndex = 0): string | null {
-  for (let i = 0; i < variants.length; i++) {
-    const v = variants[i];
-    const label = `Variant ${startIndex + i + 1}`;
-
-    if (!v.sku || v.sku.trim().length < 3) {
-      return `${label}: SKU must be at least 3 characters`;
-    }
-
-    const price = parseFloat(v.price);
-    if (!v.price || isNaN(price) || price <= 0) {
-      return `${label}: price must be a valid amount greater than 0`;
-    }
-
-    const stock = parseInt(v.stock, 10);
-    if (v.stock === "" || isNaN(stock) || stock < 0) {
-      return `${label}: stock must be a valid number (0 or more)`;
-    }
-  }
-
-  // Catch duplicate SKUs within this submission itself — the backend
-  // only checks against SKUs that already exist in the database, so
-  // two new rows sharing a SKU would otherwise pass validation and
-  // fail later with a raw Prisma unique-constraint error.
-  const skus = variants.map(v => v.sku.trim().toLowerCase());
-  const seen = new Set<string>();
-  for (let i = 0; i < skus.length; i++) {
-    if (seen.has(skus[i])) {
-      return `Duplicate SKU "${variants[i].sku.trim()}" — each variant needs a unique SKU`;
-    }
-    seen.add(skus[i]);
-  }
-
-  return null;
-}
-
-function VariantRow({ v, i, onChange, onRemove, onSave, isSaved }: {
+function VariantRow({ v, i, onChange, onRemove, onSave, onDeleteVariant, isSaved}: {
   v: VF; i: number;
   onChange: (i: number, f: keyof VF, val: string) => void;
   onRemove: (i: number) => void;
   onSave?: (i: number) => Promise<void>;
+  onDeleteVariant?: (variantId: string) => Promise<void>;
   isSaved: boolean;
 }) {
   const [saving, setSaving] = useState(false);
@@ -171,7 +140,7 @@ function VariantRow({ v, i, onChange, onRemove, onSave, isSaved }: {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-        {([["sku","SKU","BWL-001"],["price","Price (R)","1899"],["stock","Stock","10"],["color","Color","Natural Black"],["length",'Length"',"18"],["density","Density","150%"],["laceType","Lace Type","HD Lace"],["capSize","Cap Size","Medium"]] as [keyof VF, string, string][]).map(([field, label, ph]) => (
+        {([["sku","SKU","BWL-001"],["price","Price (R)","1899"],["stock","Stock","10"],["color","Color","Natural Black"],["length",'Length"',"18"]] as [keyof VF, string, string][]).map(([field, label, ph]) => (
           <div key={field}>
             <FL>{label}</FL>
             <Inp value={v[field]} onChange={e => onChange(i, field, e.target.value)} placeholder={ph} readOnly={field === "stock" && isSaved} />
@@ -185,6 +154,15 @@ function VariantRow({ v, i, onChange, onRemove, onSave, isSaved }: {
           <OutlineBtn onClick={saveVariant} disabled={saving}>
             {saving ? "Saving…" : v.id ? "Update Variant" : "Create Variant"}
           </OutlineBtn>
+        )}
+
+        {/* Delete variant (only for saved variants) */}
+        {v.id && onDeleteVariant && (
+          <button
+            onClick={() => onDeleteVariant(v.id!)}
+            className="px-3 py-2 text-xs border border-red-800/30 text-red-400/60 hover:text-red-400 hover:border-red-800/60 transition-colors uppercase tracking-wider ml-auto">
+            Delete Variant
+          </button>
         )}
 
         {/* Stock update (only for saved variants) */}
@@ -240,8 +218,8 @@ function ImageManager({ productId, images, onUpdate }: {
     form.append("file", file);
     const res = await fetch(`/api/admin/products/${productId}/images`, {
       method: "POST",
-      body: form,
       credentials: "include",
+      body: form,
     });
     const json = await res.json();
     setLoading(false);
@@ -251,8 +229,7 @@ function ImageManager({ productId, images, onUpdate }: {
   }
 
   async function del(imageId: string) {
-    const { ok } = await apiFetch(`/api/admin/products/${productId}/images/${imageId}`,
-      { method: "DELETE" });
+    const { ok } = await apiFetch(`/api/admin/products/${productId}/images/${imageId}`, { method: "DELETE" });
     if (ok) onUpdate(images.filter(img => img.id !== imageId));
   }
 
@@ -296,6 +273,10 @@ function ImageManager({ productId, images, onUpdate }: {
           />
           {loading && <p className="text-[#C9A84C] text-xs mt-2">Uploading…</p>}
           <p className="text-[#6B6B6B] text-xs mt-2">JPEG, PNG, WebP or GIF — max 5MB</p>
+          <p className="text-[#6B6B6B] text-xs mt-1">
+            💡 If upload fails, switch to <button onClick={() => setTab("url")} className="text-[#C9A84C] underline">Paste URL tab</button> and use an image link from{" "}
+            <a href="https://cloudinary.com" target="_blank" className="text-[#C9A84C] underline">Cloudinary</a> or any image host.
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -322,7 +303,10 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   product: Product | null; categories: Category[];
   onClose: () => void; onSaved: () => void;
 }) {
-  const isEdit = !!product;
+  const isEdit    = !!product;
+  //const [, setToken] = useState(initialToken);
+
+
 
   const [name, setName]               = useState(product?.name ?? "");
   const [slug, setSlug]               = useState(product?.slug ?? "");
@@ -331,14 +315,12 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   const [categoryId, setCategoryId]   = useState(product?.category.id ?? "");
   const [variants, setVariants]       = useState<VF[]>(
     product?.variants.map(v => ({
-      id: v.id, sku: v.sku,
-      price:    String((v.price / 100).toFixed(0)),
-      stock:    String(v.stock),
-      color:    v.color    ?? "",
-      length:   v.length   ?? "",
-      density:  v.density  ?? "",
-      laceType: v.laceType ?? "",
-      capSize:  v.capSize  ?? "",
+      id:    v.id,
+      sku:   v.sku,
+      price: String((v.price / 100).toFixed(0)),
+      stock: String(v.stock),
+      color: v.color  ?? "",
+      length:v.length ?? "",
     })) ?? [{ ...EMPTY_V }]
   );
   const [images, setImages]           = useState<{ id: string; url: string }[]>(product?.images ?? []);
@@ -353,24 +335,27 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
     if (!isEdit) setSlug(slugify(val));
   }
 
+  async function handleDeleteVariant(variantId: string) {
+    if (!product) return;
+    if (!confirm("Delete this variant?\n\nIf it has existing orders, stock will be set to 0 instead.")) return;
+    const { ok, error } = await apiFetch(
+      `/api/admin/products/${product.id}/variants/${variantId}`,
+      { method: "DELETE" }
+    );
+    if (!ok) { setError(error ?? "Failed to delete variant"); return; }
+    setVariants(vs => vs.filter(v => v.id !== variantId));
+    setError("");
+  }
+
   async function saveVariant(idx: number) {
     if (!product) return;
     const v = variants[idx];
-
-    // Validate this single row before sending — catches blank/invalid
-    // price or stock with a clear message instead of a generic 400.
-    const variantError = validateVariants([v], idx);
-    if (variantError) { setError(variantError); return; }
-
     const body = {
-      sku: v.sku.trim(),
-      price:    Math.round(parseFloat(v.price) * 100),
-      stock:    parseInt(v.stock, 10),
+      sku: v.sku,
+      price:    Math.round(parseFloat(v.price || "0") * 100),
+      stock:    parseInt(v.stock || "0"),
       color:    v.color    || undefined,
       length:   v.length   || undefined,
-      density:  v.density  || undefined,
-      laceType: v.laceType || undefined,
-      capSize:  v.capSize  || undefined,
     };
 
     if (v.id) {
@@ -387,16 +372,7 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name || !slug || !categoryId) return setError("Name, slug and category are required");
-    if (description.trim().length < 10) return setError("Description must be at least 10 characters");
     if (!isEdit && variants.length === 0) return setError("At least one variant is required");
-
-    // Validate every variant row before creating a new product —
-    // prevents blank/invalid price or stock from silently becoming
-    // 0/NaN and getting rejected by the backend with no useful feedback.
-    if (!isEdit) {
-      const variantError = validateVariants(variants);
-      if (variantError) return setError(variantError);
-    }
 
     setLoading(true); setError("");
 
@@ -409,14 +385,11 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
       onSaved();
     } else {
       const variantData = variants.map(v => ({
-        sku:      v.sku.trim(),
-        price:    Math.round(parseFloat(v.price) * 100),
-        stock:    parseInt(v.stock, 10),
-        color:    v.color    || undefined,
-        length:   v.length   || undefined,
-        density:  v.density  || undefined,
-        laceType: v.laceType || undefined,
-        capSize:  v.capSize  || undefined,
+        sku:    v.sku,
+        price:  Math.round(parseFloat(v.price || "0") * 100),
+        stock:  parseInt(v.stock || "0"),
+        color:  v.color  || undefined,
+        length: v.length || undefined,
       }));
       const { ok, error } = await apiFetch("/api/admin/products", {
         method: "POST", body: JSON.stringify({ name, slug, description, brand, categoryId, variants: variantData }),
@@ -534,8 +507,9 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
                     onChange={(i, f, val) => setVariants(vs => vs.map((item, j) => j === i ? { ...item, [f]: val } : item))}
                     onRemove={i => setVariants(vs => vs.filter((_, j) => j !== i))}
                     onSave={isEdit ? saveVariant : undefined}
+                    onDeleteVariant={isEdit ? handleDeleteVariant : undefined}
                     isSaved={isEdit && !!v.id}
-                  />
+                            />
                 ))
               )}
 
@@ -552,7 +526,7 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
             <ImageManager
               productId={product.id}
               images={images}
-              onUpdate={setImages}
+                  onUpdate={setImages}
             />
           )}
         </div>
@@ -579,20 +553,31 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
 // ─── MAIN PAGE ────────────────────────────────────────────────
 
 export default function AdminProductsPage() {
-  const [products, setProducts]   = useState<Product[]>([]);
+  const [products, setProducts]     = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [search, setSearch]       = useState("");
-  const [drawer, setDrawer]       = useState<"closed"|"new"|"edit">("closed");
-  const [selected, setSelected]   = useState<Product | null>(null);
-  const [deleting, setDeleting]   = useState<string | null>(null);
-  const [total, setTotal]         = useState(0);
+  const [loading, setLoading]       = useState(true);
+  const [search, setSearch]         = useState("");
+  const [drawer, setDrawer]         = useState<"closed"|"new"|"edit">("closed");
+  const [selected, setSelected]     = useState<Product | null>(null);
+  const [deleting, setDeleting]     = useState<string | null>(null);
+  const [total, setTotal]           = useState(0);
 
   useEffect(() => {
-    loadProducts();
-    productsApi.getCategories().then(({ data }) => {
-      if (data) setCategories(Array.isArray(data) ? data : []);
-    });
+    async function init() {
+      const [productsResult, categoriesResult] = await Promise.all([
+        productsApi.list({ limit: "50" }),
+        productsApi.getCategories(),
+      ]);
+      if (productsResult.data) {
+        setProducts(productsResult.data.items ?? []);
+        setTotal(productsResult.data.meta?.total ?? 0);
+      }
+      if (categoriesResult.data) {
+        setCategories(Array.isArray(categoriesResult.data) ? categoriesResult.data : []);
+      }
+      setLoading(false);
+    }
+    init();
   }, []);
 
   async function loadProducts(q = "") {
@@ -600,18 +585,23 @@ export default function AdminProductsPage() {
     const params: Record<string, string> = { limit: "50" };
     if (q) params.search = q;
     const { data } = await productsApi.list(params);
-    if (data) { setProducts(data.items); setTotal(data.meta.total); }
+    if (data) {
+      setProducts(data.items ?? []);
+      setTotal(data.meta?.total ?? 0);
+    }
     setLoading(false);
   }
 
-  async function handleArchive(id: string, name: string, currentlyActive: boolean) {
-    const action = currentlyActive ? "hide" : "restore";
-    if (!confirm(`${currentlyActive ? "Hide" : "Restore"} "${name}"?\n\n${currentlyActive ? "It will no longer appear in the shop but order history is preserved." : "It will reappear in the shop."}`)) return;
+  async function handleArchive(id: string, name: string, currentlyInStock: boolean) {
+    // Since isActive is not in this schema, we hide by setting all variant stock to 0
+    if (!confirm(`${currentlyInStock ? "Hide" : "Restore"} "${name}"?\n\n${currentlyInStock ? "All variant stock will be set to 0 so it won\'t appear as available." : "You will need to manually restore stock for each variant."}`)) return;
     setDeleting(id);
-    await apiFetch(`/api/admin/products/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ isActive: !currentlyActive }),
-    });
+    if (currentlyInStock) {
+      // Set all variants to stock 0 to effectively hide from shop
+      await apiFetch(`/api/admin/products/${id}/hide`, {
+        method: "POST",
+      });
+    }
     setDeleting(null);
     loadProducts(search);
   }

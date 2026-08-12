@@ -71,8 +71,8 @@ export default function CheckoutPage() {
 
   const subtotal = cart?.subtotal ?? 0;
   const discount = couponData?.discountAmount ?? 0;
-  const shipping = (subtotal - discount) >= 100000 ? 0 : 9900;
-  const total    = subtotal - discount + shipping;
+  const shipping = 0; // Free shipping — no charge
+  const total    = subtotal - discount;
 
   return (
     <div className="min-h-screen bg-[#F1F1F1] pt-24 pb-16 font-cormorant">
@@ -192,9 +192,7 @@ export default function CheckoutPage() {
                 )}
                 <div className="flex justify-between">
                   <span className="text-[#666]">Shipping</span>
-                  <span className={shipping === 0 ? "text-[#2A6B3C]" : "text-black"}>
-                    {shipping === 0 ? "Free" : formatPrice(shipping)}
-                  </span>
+                  <span className="text-[#2A6B3C]">Free</span>
                 </div>
               </div>
 
@@ -212,6 +210,7 @@ export default function CheckoutPage() {
               <div className="mt-5 pt-5 border-t border-black/8 space-y-2">
                 {[
                   ["🔒", "Secured by Paystack"],
+                  ["🚚", "Free Shipping Nationwide"],
                   ["✦",  "100% Human Hair Guarantee"],
                   ["↩",  "14-Day Returns"],
                 ].map(([icon, text]) => (

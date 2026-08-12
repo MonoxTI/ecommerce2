@@ -1,4 +1,4 @@
-// lib/products/handler.ts
+// lib/products/handlers.ts
 // All product-related API logic.
 // Prices are stored in CENTS (integers) — divide by 100 for display.
 
@@ -84,7 +84,7 @@ export async function handleGetProducts(req: NextRequest) {
   } = query.data;
 
   // Build dynamic WHERE clause
-  const where: any = { isActive: true };
+  const where: any = { isActive: true }; // customers only see active products
 
   if (category) {
     where.category = { slug: category };
@@ -150,6 +150,55 @@ export async function handleGetProducts(req: NextRequest) {
   });
 }
 
+
+// ─── LIST ALL PRODUCTS (ADMIN) ───────────────────────────────
+// GET /api/admin/products
+// Admin only. Returns ALL products including hidden (isActive: false).
+
+export async function handleGetAllProducts(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const query = ProductQuerySchema.safeParse(Object.fromEntries(searchParams));
+  if (!query.success) return validationError(query.error);
+
+  const { page, limit, search, category, sortBy } = query.data;
+
+  // Admin sees ALL products — no isActive filter
+  const where: any = {};
+  if (category) where.category = { slug: category };
+  if (search) {
+    where.OR = [
+      { name:        { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  const orderBy: any =
+    sortBy === "price_asc"  ? { variants: { _min: { price: "asc"  } } } :
+    sortBy === "price_desc" ? { variants: { _min: { price: "desc" } } } :
+    { createdAt: "desc" };
+
+  const total    = await db.product.count({ where });
+  const products = await db.product.findMany({
+    where,
+    orderBy,
+    skip: (page - 1) * limit,
+    take: limit,
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+      images:   { select: { id: true, url: true }, take: 1 },
+      variants: {
+        select: { id: true, sku: true, price: true, stock: true, color: true, length: true },
+      },
+      reviews: { select: { rating: true } },
+    },
+  });
+
+  return ok({
+    items: products.map(formatProduct),
+    meta:  paginate(total, page, limit),
+  });
+}
+
 // ─── GET SINGLE PRODUCT ──────────────────────────────────────
 // GET /api/products/[slug]
 // Public. Returns full product with all variants, images, and reviews.
@@ -159,7 +208,7 @@ export async function handleGetProduct(
   slug: string
 ) {
   const product = await db.product.findUnique({
-    where: { slug, isActive: true },
+    where: { slug },
     include: {
       category: { select: { id: true, name: true, slug: true } },
       images:   { select: { id: true, url: true } },
@@ -185,7 +234,6 @@ export async function handleGetProduct(
           rating:    true,
           comment:   true,
           verified:  true,
-          helpful:   true,
           createdAt: true,
           user: { select: { name: true } },
         },
@@ -214,6 +262,10 @@ export async function handleCreateProduct(req: NextRequest) {
 
   const { variants, ...productData } = parsed.data;
 
+  if (!variants || variants.length === 0) {
+    return badRequest("At least one variant is required");
+  }
+
   // Check slug is unique
   const existing = await db.product.findUnique({
     where: { slug: productData.slug },
@@ -226,26 +278,8 @@ export async function handleCreateProduct(req: NextRequest) {
   });
   if (!category) return badRequest("Category not found");
 
-  // Check for duplicate SKUs *within this submission itself*.
-  // The DB lookup below only catches SKUs that already exist as rows —
-  // it can't catch two new variants in the same payload sharing a SKU,
-  // which would otherwise pass that check (0 existing matches) and then
-  // blow up on the actual insert with a raw Prisma P2002 error.
+  // Check all SKUs are unique
   const skus = variants.map((v) => v.sku);
-  const seen = new Set<string>();
-  const duplicatesInPayload = new Set<string>();
-  for (const sku of skus) {
-    const key = sku.toLowerCase();
-    if (seen.has(key)) duplicatesInPayload.add(sku);
-    seen.add(key);
-  }
-  if (duplicatesInPayload.size > 0) {
-    return conflict(
-      `Duplicate SKU(s) in this submission: ${[...duplicatesInPayload].join(", ")}`
-    );
-  }
-
-  // Check all SKUs are unique against existing DB rows
   const existingVariants = await db.productVariant.findMany({
     where: { sku: { in: skus } },
     select: { sku: true },
@@ -337,8 +371,10 @@ export async function handleDeleteProduct(
   const hasOrders = product.variants.some((v) => v.orderItems.length > 0);
 
   if (hasOrders) {
-    await db.product.update({ where: { id }, data: { isActive: false } });
-    return ok(null, "Product hidden successfully");
+    // Can't hard delete — would break order history. Refuse and let admin use PATCH isActive:false instead.
+    return badRequest(
+      "This product has existing orders and cannot be permanently deleted. Use the Hide option to remove it from the shop."
+    );
   }
 
   // Safe to hard delete — no orders reference this product
@@ -408,6 +444,38 @@ export async function handleUpdateVariant(
 
   return ok(updated, "Variant updated");
 }
+// ─── DELETE VARIANT (ADMIN) ──────────────────────────────────
+// DELETE /api/admin/products/[id]/variants/[variantId]
+
+export async function handleDeleteVariant(
+  req: NextRequest,
+  productId: string,
+  variantId: string
+) {
+  const user = await getCurrentUser(req);
+  if (!user) return unauthorized();
+  if (!isAdmin(user.role)) return forbidden("Admin access required");
+
+  const variant = await db.productVariant.findFirst({
+    where:   { id: variantId, productId },
+    include: { orderItems: { take: 1 } },
+  });
+  if (!variant) return notFound("Variant not found");
+
+  // If variant has been ordered — set stock to 0 instead of deleting
+  if (variant.orderItems.length > 0) {
+    await db.productVariant.update({
+      where: { id: variantId },
+      data:  { stock: 0 },
+    });
+    return ok(null, "Variant has existing orders — stock set to 0.");
+  }
+
+  await db.productVariant.delete({ where: { id: variantId } });
+  return ok(null, "Variant deleted");
+}
+
+
 
 // ─── UPDATE STOCK (ADMIN) ────────────────────────────────────
 // PATCH /api/admin/products/[id]/variants/[variantId]/stock

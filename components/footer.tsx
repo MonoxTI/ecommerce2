@@ -154,7 +154,7 @@ export default function Footer() {
         {/* Trust badges */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-8 border-y border-black/8 mb-10">
           {[
-            ["🚚", "Free Shipping",    "Orders over R1,000"],
+            ["🚚", "Free Shipping"],
             ["✦",  "100% Human Hair",  "Virgin hair guaranteed"],
             ["↩",  "Easy Returns",     "14-day policy"],
             ["🔒", "Secure Checkout",  "Paystack protected"],
@@ -190,7 +190,7 @@ export default function Footer() {
             </div>
             {/* Payment badges */}
             <div className="flex items-center gap-2 ml-4">
-              {["Visa", "MC", "EFT"].map(card => (
+              {["Visa", "MC", "EFT", "Apple Pay"].map(card => (
                 <span key={card}
                   className="text-[10px] px-2 py-1 border border-black/10 rounded text-[#666]">
                   {card}

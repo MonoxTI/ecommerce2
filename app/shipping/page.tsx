@@ -63,7 +63,7 @@ export default function ShippingPolicyPage() {
           <Section number="02" title="Shipping & Delivery">
             <>
               <div className="bg-black text-white px-5 py-4 mb-5 inline-block">
-                <p className="text-sm tracking-wider">✨ Nationwide shipping is included in all novaa pricing</p>
+                <p className="text-sm tracking-wider"> Nationwide shipping is included in all novaa pricing</p>
               </div>
               <p className="mb-4 text-black/50 text-xs tracking-widest uppercase">Estimated delivery after dispatch</p>
               <table className="w-full text-sm border-collapse">

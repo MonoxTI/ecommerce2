@@ -43,6 +43,8 @@ model User {
   reviews   Review[]
   cart      Cart?
   refreshTokens RefreshToken[]  // 👈 Relation for JWT rotation
+  appointments  Appointment[]
+  
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,6 +140,56 @@ model ProductImage {
 
   @@map("product_images")
   @@index([productId])
+}
+
+model HomeCollection {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String
+  href      String
+  imageUrl  String
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Service {
+  id           String        @id @default(cuid())
+  name         String
+  description  String
+  duration     Int
+  price        Int
+  category     String
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
+}
+
+model Availability {
+  id        String   @id @default(cuid())
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  serviceId String
+  userId    String
+  date      String
+  startTime String
+  endTime   String
+  status    String   @default("PENDING")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  service   Service  @relation(fields: [serviceId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model ProductVariant {

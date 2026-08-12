@@ -1,7 +1,6 @@
-// app/admin/layout.tsx
 "use client";
-
-import { useEffect } from "react";
+// app/admin/layout.tsx
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
@@ -9,10 +8,12 @@ import { useAuthStore } from "@/store/authStore";
 const NAV = [
   { href: "/admin",            label: "Dashboard",  icon: "▦" },
   { href: "/admin/orders",     label: "Orders",     icon: "📦" },
+  { href: "/admin/products",   label: "Products",   icon: "✦" },
   { href: "/admin/customers",  label: "Customers",  icon: "👤" },
   { href: "/admin/inventory",  label: "Inventory",  icon: "📊" },
-  { href: "/admin/coupons",    label: "Coupons",    icon: "🏷" },
-  { href: "/admin/products",   label: "Products",   icon: "🛍" },
+  { href: "/admin/coupons",      label: "Coupons",      icon: "🏷" },
+  { href: "/admin/collections",  label: "Shop by Type", icon: "🖼" },
+  { href: "/admin/services",     label: "Services",     icon: "✂" },
 ];
 
 // ── COLOR PALETTE (Cream / Black / White) ─────────────────
@@ -41,16 +42,28 @@ const colors = {
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const router         = useRouter();
-  const pathname       = usePathname();
-  const { user } = useAuthStore();
+  const router              = useRouter();
+  const pathname            = usePathname();
+  const { user }     = useAuthStore();
+  const [ready, setReady]   = React.useState(false);
 
   useEffect(() => {
-    if (!user) router.push("/login?redirect=/admin");
-    else if (user.role !== "ADMIN") router.push("/account");
-  }, [user]);
+    // Wait one tick for Zustand to rehydrate from localStorage
+    const timer = setTimeout(() => setReady(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
-  if (!user || user.role !== "ADMIN") return null;
+  useEffect(() => {
+    if (!ready) return;
+    else if (user && user.role !== "ADMIN") router.push("/account/orders");
+  }, [ready, user]);
+
+  // Show nothing while rehydrating
+  if (!ready || !user || user.role !== "ADMIN") return (
+    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   return (
     <div className={`min-h-screen ${colors.bg} font-cormorant flex mt-16`}>

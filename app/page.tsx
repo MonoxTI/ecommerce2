@@ -15,11 +15,22 @@ const colors = {
   divider: "from-transparent via-black/20 to-transparent",
 };
 
-const collections = [
-  { title: "Lace Front", subtitle: "Natural hairline, effortless style", href: "/shop?category=lace-front-wigs",  image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80" },
-  { title: "HD Lace",    subtitle: "Undetectable. Unmatched.",           href: "/shop?category=hd-lace-wigs",    image: "https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=800&q=80" },
-  { title: "Full Lace",  subtitle: "Versatile styling, all day wear",    href: "/shop?category=full-lace-wigs",  image: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80" },
+// Default Shop by Type cards shown if none are configured in the admin
+const DEFAULT_COLLECTIONS = [
+  { id: "default-1", title: "Transparent Lace Front",  subtitle: "Natural hairline, effortless style", href: "/shop?category=lace-front-wigs",  imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80" },
+  { id: "default-2", title: "HD Lace",     subtitle: "Undetectable. Unmatched.",           href: "/shop?category=hd-lace-wigs",     imageUrl: "https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=800&q=80" },
+  { id: "default-3", title: "Bundles",   subtitle: "Versatile styling, all day wear",    href: "/shop?category=full-lace-wigs",   imageUrl: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80" },
+  { id: "default-4", title: "Glueless",    subtitle: "Install in minutes, no glue needed", href: "/shop?category=glueless-wigs",    imageUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&q=80" },
 ];
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-4 mb-6">
+      <span className="text-xs tracking-[0.3em] uppercase text-black/60 font-medium">{children}</span>
+      <div className="h-px flex-1 bg-black/10" />
+    </div>
+  );
+}
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -49,12 +60,21 @@ function ProductSkeleton() {
 }
 
 export default function HomePage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [products, setProducts]         = useState<Product[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [collections, setCollections]   = useState(DEFAULT_COLLECTIONS as any[]);
 
   useEffect(() => {
-    productsApi.list({ limit: "4", sortBy: "newest" }).then(({ data }) => {
-      if (data?.items) setProducts(data.items.slice(0, 4));
+    // Load products and collections in parallel
+    Promise.all([
+      productsApi.list({ limit: "4", sortBy: "newest" }),
+      fetch("/api/collections", { credentials: "include" }).then(r => r.json()).catch(() => null),
+    ]).then(([productsRes, collectionsRes]) => {
+      if (productsRes.data?.items) setProducts(productsRes.data.items.slice(0, 4));
+      // Use DB collections if they exist, otherwise keep defaults
+      if (collectionsRes?.data && Array.isArray(collectionsRes.data) && collectionsRes.data.length > 0) {
+        setCollections(collectionsRes.data);
+      }
       setLoading(false);
     });
   }, []);
@@ -62,7 +82,7 @@ export default function HomePage() {
   return (
     <div className={`${colors.bg} min-h-screen`}>
 
-      {/* ── HERO WITH BIG LOGO ─────────────────────────── */}
+     {/* ── HERO WITH BIG LOGO ─────────────────────────── */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 z-0" style={{
@@ -111,7 +131,7 @@ export default function HomePage() {
 
             {/* Stats */}
             <div className="flex gap-16 md:gap-24 pt-10 border-t border-black/10 flex-wrap justify-center">
-              {[["2,400+", "Happy Customers"], ["100%", "Human Hair"], ["R3000+", "Free Shipping"]].map(([val, label]) => (
+              {[["500+", "Happy Customers"],["Free Shipping"], ["100%", "Human Hair"]].map(([val, label]) => (
                 <div key={label} className="text-center">
                   <div className="font-serif text-3xl md:text-5xl text-black font-semibold leading-none">{val}</div>
                   <div className={`${colors.textLight} text-xs tracking-[0.2em] uppercase mt-3`}>{label}</div>
@@ -132,10 +152,7 @@ export default function HomePage() {
         <div className="max-w-screen-xl mx-auto px-6 md:px-12">
           <div className="flex justify-between items-end mb-16 flex-wrap gap-6">
             <div>
-              <div className="flex items-center gap-4 mb-6">
-                <span className="text-xs tracking-[0.3em] uppercase text-black/60 font-medium">Our Collection</span>
-                <div className="h-px flex-1 bg-black/10" />
-              </div>
+              <SectionLabel>Our Collection</SectionLabel>
               <h2 className="font-serif text-5xl md:text-6xl text-black font-light">Featured Wigs</h2>
             </div>
             <Link href="/shop"
@@ -150,6 +167,7 @@ export default function HomePage() {
               ? Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
               : products.length === 0
                 ? (
+                  // Fallback if no products seeded yet
                   <div className="col-span-4 text-center py-16 text-black/40 text-sm">
                     No products yet — add some in the{" "}
                     <Link href="/admin/products" className="underline hover:text-black">admin panel</Link>.
@@ -211,17 +229,14 @@ export default function HomePage() {
       <section className={`py-28 ${colors.bgAlt}`}>
         <div className="max-w-screen-xl mx-auto px-6 md:px-12">
           <div className="text-center mb-16">
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <span className="text-xs tracking-[0.3em] uppercase text-black/60 font-medium">Shop By Type</span>
-              <div className="h-px w-24 bg-black/10" />
-            </div>
+            <SectionLabel>Shop By Type</SectionLabel>
             <h2 className="font-serif text-5xl md:text-6xl text-black font-light">Find Your Perfect Match</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {collections.map((col) => (
-              <Link key={col.title} href={col.href}
+              <Link key={col.id ?? col.title} href={col.href}
                 className="group relative block overflow-hidden aspect-[3/4] border border-black/10 rounded-sm">
-                <img src={col.image} alt={col.title}
+                <img src={col.imageUrl ?? col.image} alt={col.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                   loading="lazy" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />

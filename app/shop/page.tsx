@@ -5,6 +5,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { productsApi, cartApi, Product, Category } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
@@ -23,7 +24,6 @@ const SORT_OPTIONS = [
 
 const LENGTHS   = ["12", "14", "16", "18", "20", "22", "24", "26", "28"];
 const LACE_TYPES = ["Lace Front", "Full Lace", "HD Lace", "4x4", "13x4"];
-const COLORS     = ["Natural Black", "Jet Black", "Dark Brown", "Medium Brown", "Blonde"];
 
 // ─── PRODUCT CARD ─────────────────────────────────────────────
 
@@ -112,6 +112,7 @@ function FilterGroup({ title, children }: { title: string; children: React.React
 // ─── PAGE ─────────────────────────────────────────────────────
 
 function ShopContent() {
+  
   const { addItem } = useCartStore();
 
   const [products, setProducts]     = useState<Product[]>([]);
@@ -126,7 +127,6 @@ function ShopContent() {
   const [sortBy, setSortBy]         = useState("newest");
   const [activeCategory, setActiveCategory] = useState("");
   const [activeLace, setActiveLace]         = useState<string[]>([]);
-  const [activeColors, setActiveColors]     = useState<string[]>([]);
   const [activeLengths, setActiveLengths]   = useState<string[]>([]);
 
   // Toast
@@ -146,7 +146,7 @@ function ShopContent() {
   // Load products when filters change
   useEffect(() => {
     loadProducts();
-  }, [page, sortBy, activeCategory, activeLace, activeColors, activeLengths]);
+  }, [page, sortBy, activeCategory, activeLace, activeLengths]);
 
   async function loadProducts() {
     setLoading(true);
@@ -158,7 +158,6 @@ function ShopContent() {
     if (search)         params.search   = search;
     if (activeCategory) params.category = activeCategory;
     if (activeLace[0])  params.laceType = activeLace[0];
-    if (activeColors[0])params.color    = activeColors[0];
     if (activeLengths[0])params.length  = activeLengths[0];
 
     const { data } = await productsApi.list(params);
@@ -170,16 +169,16 @@ function ShopContent() {
     setLoading(false);
   }
 
-  function toggleFilter(group: "lace" | "color" | "length", value: string) {
-    const setters = { lace: setActiveLace, color: setActiveColors, length: setActiveLengths };
-    const getters = { lace: activeLace, color: activeColors, length: activeLengths };
+  function toggleFilter(group: "lace" | "length", value: string) {
+    const setters = { lace: setActiveLace, length: setActiveLengths };
+    const getters = { lace: activeLace, length: activeLengths };
     const current = getters[group];
     setters[group](current.includes(value) ? current.filter(v => v !== value) : [...current, value]);
     setPage(1);
   }
 
   function clearFilters() {
-    setActiveCategory(""); setActiveLace([]); setActiveColors([]); setActiveLengths([]); setSearch(""); setPage(1);
+    setActiveCategory(""); setActiveLace([]); setActiveLengths([]); setSearch(""); setPage(1);
   }
 
   async function handleAddToCart(product: Product) {
@@ -192,7 +191,7 @@ function ShopContent() {
     setTimeout(() => setToastVisible(false), 2800);
   }
 
-  const activeCount = activeLace.length + activeColors.length + activeLengths.length + (activeCategory ? 1 : 0);
+  const activeCount = activeLace.length + activeLengths.length + (activeCategory ? 1 : 0);
 
   return (
     <div className="bg-[#FAF8F5] min-h-screen" style={{ fontFamily: "'Jost', sans-serif" }}>
@@ -325,23 +324,6 @@ function ShopContent() {
               </div>
             </FilterGroup>
 
-            <FilterGroup title="Color">
-              <div className="space-y-2.5">
-                {COLORS.map(color => (
-                  <label key={color} className="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox"
-                      checked={activeColors.includes(color)}
-                      onChange={() => toggleFilter("color", color)}
-                      className="accent-[#2C1F14] w-3.5 h-3.5"
-                    />
-                    <span className={`text-sm transition-colors ${activeColors.includes(color) ? "text-[#2C1F14] font-medium" : "text-[#8C7B6B] group-hover:text-[#2C1F14]"}`}>
-                      {color}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </FilterGroup>
-
             <FilterGroup title="Length">
               <div className="flex flex-wrap gap-2">
                 {LENGTHS.map(len => (
@@ -444,16 +426,6 @@ function ShopContent() {
                 ))}
               </div>
             </FilterGroup>
-            <FilterGroup title="Color">
-              <div className="space-y-2.5">
-                {COLORS.map(color => (
-                  <label key={color} className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={activeColors.includes(color)} onChange={() => toggleFilter("color", color)} className="accent-[#2C1F14]" />
-                    <span className="text-sm text-[#8C7B6B]">{color}</span>
-                  </label>
-                ))}
-              </div>
-            </FilterGroup>
             <FilterGroup title="Length">
               <div className="flex flex-wrap gap-2">
                 {LENGTHS.map(len => (
@@ -472,6 +444,15 @@ function ShopContent() {
         </div>
       )}
 
+      {/* Toast */}
+      <div className={`fixed bottom-8 right-8 bg-[#2C1F14] text-[#FAF8F5] px-6 py-3.5 text-sm flex items-center gap-3 z-50 transition-all duration-300 ${
+        toastVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8 pointer-events-none"
+      }`}>
+        <span className="text-[#B8965A]">✓</span>
+        {toast}
+      </div>
+
+      <Footer />
     </div>
   );
 }
