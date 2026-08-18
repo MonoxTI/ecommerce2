@@ -23,6 +23,11 @@ function formatPrice(cents: number) {
   return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}`;
 }
 
+// Helper to get local date string (YYYY-MM-DD) without UTC timezone shifts
+const getLocalDateStr = (date: Date) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 const CATEGORY_LABELS: Record<string, string> = {
   "makeup":       "Makeup",
   "installation": "Wig Installation",
@@ -65,7 +70,7 @@ export default function ServicesPage() {
       if (apptRes?.data) setMyAppts(Array.isArray(apptRes.data) ? apptRes.data : []);
       setLoading(false);
     });
-  }, [user?.id]); // ⚠️ Recommendation: use user?.id or a stable primitive value to prevent infinite loops if the user object reference changes on every render
+  }, [user]);
 
   // When a service is selected — fetch which days have availability for it
   useEffect(() => {
@@ -80,25 +85,45 @@ export default function ServicesPage() {
     fetch("/api/services/availability/days", { credentials: "include" })
       .then(r => r.json())
       .then(({ data }) => {
-        if (!Array.isArray(data)) { setDaysLoading(false); return; }
-        const activeDays: number[] = data; // e.g. [1, 2, 3, 4, 5] for Mon–Fri
+        // data = { days: [1,2,3], dates: ["2026-06-20"] }
+        const recurringDays: number[] = Array.isArray(data?.days)  ? data.days  : [];
+        const specificDates: string[] = Array.isArray(data?.dates) ? data.dates : [];
 
-        // Generate next 30 days, filter to only days admin is available
+        // Generate next 30 days
         const today = new Date();
+        const todayStr = getLocalDateStr(today);
         const days: AvailableDay[] = [];
+
+        // Add recurring days
         for (let i = 1; i <= 30; i++) {
           const d = new Date(today);
           d.setDate(today.getDate() + i);
-          if (activeDays.includes(d.getDay())) {
+          const dateStr = getLocalDateStr(d);
+          if (recurringDays.includes(d.getDay()) && !specificDates.includes(dateStr)) {
             days.push({
-              date:  d.toISOString().split("T")[0],
+              date:  dateStr,
               label: d.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" }),
             });
           }
         }
+
+        // Add specific dates (only future ones)
+        for (const dateStr of specificDates) {
+          if (dateStr > todayStr && !days.find(d => d.date === dateStr)) {
+            const d = new Date(dateStr + "T00:00:00");
+            days.push({
+              date:  dateStr,
+              label: d.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" }),
+            });
+          }
+        }
+
+        // Sort by date
+        days.sort((a, b) => (a.date > b.date ? 1 : -1));
         setAvailableDays(days);
         setDaysLoading(false);
-      });
+      })
+      .catch(() => setDaysLoading(false));
   }, [selectedService]);
 
   // When a date is selected — fetch available time slots
@@ -114,37 +139,49 @@ export default function ServicesPage() {
       .then(({ data }) => {
         setSlots(Array.isArray(data) ? data : []);
         setSlotsLoading(false);
-      });
+      })
+      .catch(() => setSlotsLoading(false));
   }, [selectedService, selectedDate]);
 
   async function book() {
     if (!user) { router.push("/auth/login?redirect=/services"); return; }
     if (!selectedService || !selectedDate || !selectedSlot) return;
     setBooking(true); setError("");
-    const res = await fetch("/api/appointments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        serviceId: selectedService.id,
-        date:      selectedDate,
-        startTime: selectedSlot,
-        notes,
-      }),
-    });
-    const json = await res.json();
-    setBooking(false);
-    if (!res.ok) return setError(json.error ?? "Booking failed. Please try again.");
-    setBookingSuccess(true);
-    setMyAppts(prev => [json.data, ...prev]);
-    setTimeout(() => {
-      setBookingSuccess(false);
-      setSelectedService(null);
-      setSelectedDate("");
-      setSelectedSlot("");
-      setNotes("");
-      setTab("my-appointments");
-    }, 2000);
+    
+    try {
+      const res = await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          serviceId: selectedService.id,
+          date:      selectedDate,
+          startTime: selectedSlot,
+          notes,
+        }),
+      });
+      const json = await res.json();
+      setBooking(false);
+      
+      if (!res.ok) {
+        return setError(json.error ?? "Booking failed. Please try again.");
+      }
+      
+      setBookingSuccess(true);
+      setMyAppts(prev => [json.data, ...prev]);
+      
+      setTimeout(() => {
+        setBookingSuccess(false);
+        setSelectedService(null);
+        setSelectedDate("");
+        setSelectedSlot("");
+        setNotes("");
+        setTab("my-appointments");
+      }, 2000);
+    } catch (err) {
+      setBooking(false);
+      setError("Network error. Please try again.");
+    }
   }
 
   const grouped = services.reduce((acc, s) => {

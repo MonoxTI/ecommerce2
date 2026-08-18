@@ -69,8 +69,6 @@ function ServicesTab() {
 
   const EMPTY = { name: "", description: "", duration: 60, price: 0, category: "installation", active: true };
   const [form, setForm] = useState({ ...EMPTY });
-  const set = (k: string) => (v: any) => setForm(f => ({ ...f, [k]: v }));
-
   useEffect(() => {
     api("/api/admin/services").then(({ data }) => {
       if (Array.isArray(data)) setServices(data);
@@ -112,32 +110,52 @@ function ServicesTab() {
     setShowAdd(false);
   }
 
-  const FormPanel = () => (
+  // Form panel rendered inline (not as nested component) to prevent focus loss on keystroke
+  const renderForm = () => (
     <div className="bg-[#111111] border border-[#C9A84C]/30 p-5 mb-5 space-y-4">
       <p className="text-[#C9A84C] text-xs tracking-[0.14em] uppercase">
         {editingId ? "Editing Service" : "New Service"}
       </p>
       {error && <div className="px-3 py-2 bg-red-950/40 border border-red-800/50 text-red-400 text-sm">{error}</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div><FL>Service Name *</FL><Inp value={form.name} onChange={e => set("name")(e.target.value)} placeholder="Wig Installation" /></div>
+        <div>
+          <FL>Service Name *</FL>
+          <Inp value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            placeholder="Wig Installation" />
+        </div>
         <div>
           <FL>Category *</FL>
-          <select value={form.category} onChange={e => set("category")(e.target.value)}
+          <select value={form.category}
+            onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
             className="w-full bg-[#1A1A1A] border border-white/[0.08] text-[#F5F0E8] px-3 py-2.5 text-sm outline-none focus:border-[#C9A84C] transition-colors">
             {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
-        <div><FL>Duration (minutes) *</FL><Inp type="number" min={15} step={15} value={form.duration} onChange={e => set("duration")(e.target.value)} placeholder="60" /></div>
-        <div><FL>Price (R) *</FL><Inp type="number" min={0} value={form.price} onChange={e => set("price")(e.target.value)} placeholder="350" /></div>
+        <div>
+          <FL>Duration (minutes) *</FL>
+          <Inp type="number" min={15} step={15} value={form.duration}
+            onChange={e => setForm(f => ({ ...f, duration: e.target.value as any }))}
+            placeholder="60" />
+        </div>
+        <div>
+          <FL>Price (R) *</FL>
+          <Inp type="number" min={0} value={form.price}
+            onChange={e => setForm(f => ({ ...f, price: e.target.value as any }))}
+            placeholder="350" />
+        </div>
         <div className="md:col-span-2">
           <FL>Description</FL>
-          <textarea value={form.description} onChange={e => set("description")(e.target.value)}
+          <textarea value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="What's included in this service…" rows={3}
             className="w-full bg-[#1A1A1A] border border-white/[0.08] text-[#F5F0E8] px-3 py-2.5 text-sm outline-none focus:border-[#C9A84C] transition-colors placeholder:text-[#6B6B6B] resize-none"
           />
         </div>
         <label className="flex items-center gap-3 cursor-pointer">
-          <input type="checkbox" checked={form.active} onChange={e => set("active")(e.target.checked)} className="accent-[#C9A84C] w-4 h-4" />
+          <input type="checkbox" checked={form.active}
+            onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
+            className="accent-[#C9A84C] w-4 h-4" />
           <span className="text-[#F5F0E8] text-sm">Active (visible to customers)</span>
         </label>
       </div>
@@ -157,7 +175,7 @@ function ServicesTab() {
         <p className="text-[#6B6B6B] text-sm">{services.length} services</p>
         {!showAdd && !editingId && <GoldBtn onClick={() => setShowAdd(true)}>+ Add Service</GoldBtn>}
       </div>
-      {(showAdd || editingId) && <FormPanel />}
+      {(showAdd || editingId) && renderForm()}
       {loading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-white/[0.04] animate-pulse" />)}</div>
       ) : services.length === 0 ? (
@@ -199,12 +217,12 @@ function ServicesTab() {
 // ─── AVAILABILITY TAB ─────────────────────────────────────────
 
 function AvailabilityTab() {
-  const [slots, setSlots]     = useState<Availability[]>([]);
+  const [slots, setSlots]     = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm]       = useState({ dayOfWeek: 1, startTime: "09:00", endTime: "17:00", active: true });
+  const [mode, setMode]       = useState<"recurring" | "specific">("recurring");
+  const [form, setForm]       = useState({ dayOfWeek: 1, specificDate: "", startTime: "09:00", endTime: "17:00" });
   const [saving, setSaving]   = useState(false);
-  const set = (k: string) => (v: any) => setForm(f => ({ ...f, [k]: v }));
 
   useEffect(() => {
     api("/api/admin/availability").then(({ data }) => {
@@ -215,42 +233,90 @@ function AvailabilityTab() {
 
   async function add() {
     setSaving(true);
-    const { ok, data } = await api("/api/admin/availability", { method: "POST", body: JSON.stringify(form) });
+    const payload = mode === "recurring"
+      ? { dayOfWeek: form.dayOfWeek, specificDate: null, startTime: form.startTime, endTime: form.endTime, active: true }
+      : { dayOfWeek: null, specificDate: form.specificDate, startTime: form.startTime, endTime: form.endTime, active: true };
+    const { ok, data } = await api("/api/admin/availability", { method: "POST", body: JSON.stringify(payload) });
     setSaving(false);
     if (ok) { setSlots(ss => [...ss, data]); setShowAdd(false); }
   }
 
   async function toggle(id: string, active: boolean) {
     await api(`/api/admin/availability/${id}`, { method: "PATCH", body: JSON.stringify({ active: !active }) });
-    setSlots(ss => ss.map(s => s.id === id ? { ...s, active: !active } : s));
+    setSlots(ss => ss.map((s: any) => s.id === id ? { ...s, active: !active } : s));
   }
 
   async function remove(id: string) {
     if (!confirm("Remove this availability slot?")) return;
     await api(`/api/admin/availability/${id}`, { method: "DELETE" });
-    setSlots(ss => ss.filter(s => s.id !== id));
+    setSlots(ss => ss.filter((s: any) => s.id !== id));
   }
+
+  const recurring = slots.filter((s: any) => !s.specificDate);
+  const specific  = slots.filter((s: any) => s.specificDate);
+
+  const SlotRow = ({ slot }: { slot: any }) => (
+    <div className={`bg-[#111111] border p-4 flex justify-between items-center gap-4 ${slot.active ? "border-white/[0.06]" : "border-red-800/20"}`}>
+      <div className="flex items-center gap-6 flex-wrap">
+        <p className="text-[#F5F0E8] text-sm font-medium min-w-[120px]">
+          {slot.specificDate
+            ? new Date(slot.specificDate + "T00:00:00").toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+            : DAYS[slot.dayOfWeek]}
+        </p>
+        <p className="text-[#6B6B6B] text-sm">{slot.startTime} — {slot.endTime}</p>
+        {!slot.active && <span className="text-[0.6rem] tracking-widest uppercase text-red-400 border border-red-800/30 px-1.5 py-0.5">Off</span>}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => toggle(slot.id, slot.active)}
+          className={`py-1.5 px-3 text-xs border transition-colors uppercase ${slot.active ? "border-yellow-800/20 text-yellow-400/60 hover:text-yellow-400" : "border-green-800/20 text-green-400/60 hover:text-green-400"}`}>
+          {slot.active ? "Disable" : "Enable"}
+        </button>
+        <button onClick={() => remove(slot.id)} className="py-1.5 px-3 text-xs border border-red-800/20 text-red-400/40 hover:text-red-400 transition-colors">🗑</button>
+      </div>
+    </div>
+  );
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-5">
-        <p className="text-[#6B6B6B] text-sm">Set the days and hours you're available for appointments.</p>
-        <GoldBtn onClick={() => setShowAdd(!showAdd)}>+ Add Hours</GoldBtn>
+      <div className="flex justify-between items-center mb-2">
+        <div>
+          <p className="text-[#6B6B6B] text-sm">Set when you're available for appointments.</p>
+          <p className="text-[#6B6B6B] text-xs mt-0.5">Recurring = every week on that day. Specific = one-off date only.</p>
+        </div>
+        <GoldBtn onClick={() => setShowAdd(!showAdd)}>+ Add Availability</GoldBtn>
       </div>
 
       {showAdd && (
-        <div className="bg-[#111111] border border-[#C9A84C]/30 p-5 mb-5 space-y-4">
+        <div className="bg-[#111111] border border-[#C9A84C]/30 p-5 mb-5 space-y-4 mt-4">
           <p className="text-[#C9A84C] text-xs tracking-[0.14em] uppercase">Add Availability</p>
+          <div className="flex gap-2">
+            {(["recurring", "specific"] as const).map(m => (
+              <button key={m} onClick={() => setMode(m)}
+                className={`py-1.5 px-4 text-xs uppercase tracking-wider border transition-colors ${mode === m ? "bg-[#C9A84C] text-[#0A0A0A] border-[#C9A84C]" : "border-white/[0.08] text-[#6B6B6B] hover:text-[#F5F0E8]"}`}>
+                {m === "recurring" ? "Recurring (weekly)" : "Specific Date"}
+              </button>
+            ))}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <FL>Day of Week</FL>
-              <select value={form.dayOfWeek} onChange={e => set("dayOfWeek")(Number(e.target.value))}
-                className="w-full bg-[#1A1A1A] border border-white/[0.08] text-[#F5F0E8] px-3 py-2.5 text-sm outline-none focus:border-[#C9A84C] transition-colors">
-                {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
-              </select>
-            </div>
-            <div><FL>Start Time</FL><Inp type="time" value={form.startTime} onChange={e => set("startTime")(e.target.value)} /></div>
-            <div><FL>End Time</FL><Inp type="time" value={form.endTime} onChange={e => set("endTime")(e.target.value)} /></div>
+            {mode === "recurring" ? (
+              <div>
+                <FL>Day of Week</FL>
+                <select value={form.dayOfWeek} onChange={e => setForm(f => ({ ...f, dayOfWeek: Number(e.target.value) }))}
+                  className="w-full bg-[#1A1A1A] border border-white/[0.08] text-[#F5F0E8] px-3 py-2.5 text-sm outline-none focus:border-[#C9A84C] transition-colors">
+                  {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <FL>Specific Date</FL>
+                <Inp type="date"
+                  min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
+                  value={form.specificDate}
+                  onChange={e => setForm(f => ({ ...f, specificDate: e.target.value }))} />
+              </div>
+            )}
+            <div><FL>Start Time</FL><Inp type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} /></div>
+            <div><FL>End Time</FL><Inp type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} /></div>
           </div>
           <div className="flex gap-3">
             <GoldBtn onClick={add} disabled={saving}>{saving ? "Saving…" : "Add"}</GoldBtn>
@@ -260,30 +326,34 @@ function AvailabilityTab() {
       )}
 
       {loading ? (
-        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-white/[0.04] animate-pulse" />)}</div>
+        <div className="space-y-2 mt-4">{[1,2,3].map(i => <div key={i} className="h-12 bg-white/[0.04] animate-pulse" />)}</div>
       ) : slots.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-white/[0.06]">
+        <div className="text-center py-12 border border-dashed border-white/[0.06] mt-4">
           <p className="text-[#6B6B6B] mb-2">No availability set</p>
           <p className="text-[#6B6B6B] text-xs">Customers won't be able to book until you add your available hours.</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {[...slots].sort((a,b) => a.dayOfWeek - b.dayOfWeek).map(slot => (
-            <div key={slot.id} className={`bg-[#111111] border p-4 flex justify-between items-center gap-4 ${slot.active ? "border-white/[0.06]" : "border-red-800/20"}`}>
-              <div className="flex items-center gap-6">
-                <p className="text-[#F5F0E8] text-sm font-medium w-24">{DAYS[slot.dayOfWeek]}</p>
-                <p className="text-[#6B6B6B] text-sm">{slot.startTime} — {slot.endTime}</p>
-                {!slot.active && <span className="text-[0.6rem] tracking-widest uppercase text-red-400 border border-red-800/30 px-1.5 py-0.5">Off</span>}
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => toggle(slot.id, slot.active)}
-                  className={`py-1.5 px-3 text-xs border transition-colors uppercase ${slot.active ? "border-yellow-800/20 text-yellow-400/60 hover:text-yellow-400" : "border-green-800/20 text-green-400/60 hover:text-green-400"}`}>
-                  {slot.active ? "Disable" : "Enable"}
-                </button>
-                <button onClick={() => remove(slot.id)} className="py-1.5 px-3 text-xs border border-red-800/20 text-red-400/40 hover:text-red-400 transition-colors">🗑</button>
+        <div className="space-y-6 mt-4">
+          {recurring.length > 0 && (
+            <div>
+              <p className="text-[#6B6B6B] text-xs tracking-widest uppercase mb-2">Recurring — Every Week</p>
+              <div className="space-y-2">
+                {[...recurring].sort((a: any, b: any) => a.dayOfWeek - b.dayOfWeek).map((slot: any) => (
+                  <SlotRow key={slot.id} slot={slot} />
+                ))}
               </div>
             </div>
-          ))}
+          )}
+          {specific.length > 0 && (
+            <div>
+              <p className="text-[#6B6B6B] text-xs tracking-widest uppercase mb-2">Specific Dates</p>
+              <div className="space-y-2">
+                {[...specific].sort((a: any, b: any) => a.specificDate > b.specificDate ? 1 : -1).map((slot: any) => (
+                  <SlotRow key={slot.id} slot={slot} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
