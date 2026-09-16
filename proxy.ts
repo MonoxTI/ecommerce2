@@ -7,20 +7,18 @@ import { Role } from "@prisma/client";
 
 // ─── RATE LIMITER ────────────────────────────────────────────
 
-interface RateLimitWindow {
-  count: number;
-  windowStart: number;
-}
-
+interface RateLimitWindow { count: number; windowStart: number; }
 const store = new Map<string, RateLimitWindow>();
 
 const LIMITS: Record<string, { windowMs: number; max: number }> = {
-  "/api/auth/login":           { windowMs: 15 * 60_000, max: 10  },
-  "/api/auth/register":        { windowMs: 60 * 60_000, max: 5   },
-  "/api/auth/forgot-password": { windowMs: 60 * 60_000, max: 5   },
-  "/api/auth/reset-password":  { windowMs: 60 * 60_000, max: 5   },
-  "/api/payments/itn":         { windowMs: 60_000,       max: 100 },
-  default:                     { windowMs: 60_000,       max: 120 },
+  "/api/auth/login":              { windowMs: 15 * 60_000, max: 10  },
+  "/api/auth/register":           { windowMs: 60 * 60_000, max: 5   },
+  "/api/auth/forgot-password":    { windowMs: 60 * 60_000, max: 5   },
+  "/api/auth/reset-password":     { windowMs: 60 * 60_000, max: 5   },
+  "/api/payments/itn":            { windowMs: 60_000,       max: 100 },
+  "/api/payments/payfast-notify": { windowMs: 60_000,       max: 100 },
+  "/api/payments/paystack-webhook": { windowMs: 60_000,     max: 100 },
+  default:                        { windowMs: 60_000,       max: 120 },
 };
 
 function isAllowed(ip: string, pathname: string): boolean {
@@ -28,7 +26,6 @@ function isAllowed(ip: string, pathname: string): boolean {
   const key = `${ip}:${pathname}`;
   const now = Date.now();
   const entry = store.get(key);
-
   if (!entry || now - entry.windowStart > cfg.windowMs) {
     store.set(key, { count: 1, windowStart: now });
     return true;
@@ -51,14 +48,14 @@ function withSecurityHeaders(res: NextResponse): NextResponse {
     res.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     res.headers.set("Content-Security-Policy", [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com",
+      "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: https: blob:",
       "font-src 'self' https://fonts.gstatic.com data:",
-      "connect-src 'self' https://api.paystack.co https://checkout.paystack.com",
-      "frame-src https://checkout.paystack.com",
-      "form-action 'self' https://checkout.paystack.com",
+      "connect-src 'self'",
+      "frame-src https://www.payfast.co.za https://sandbox.payfast.co.za",
+      "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
     ].join("; "));
   }
 
@@ -86,7 +83,6 @@ function apiUnauth(message: string): NextResponse {
 }
 
 // ─── PROXY HANDLER ───────────────────────────────────────────
-// Next.js 16 uses proxy.ts with a function named "middleware"
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -98,6 +94,15 @@ export async function proxy(req: NextRequest) {
     /\.(png|jpe?g|gif|svg|ico|webp|woff2?)$/.test(pathname)
   ) {
     return NextResponse.next();
+  }
+
+  // Webhook/ITN routes — skip auth (they use signature verification instead)
+  const webhookPaths = [
+    "/api/payments/itn",
+    "/api/payments/payfast-notify",
+  ];
+  if (webhookPaths.includes(pathname)) {
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // ── 1. Rate limiting ─────────────────────────────────────

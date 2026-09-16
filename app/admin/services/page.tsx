@@ -204,7 +204,7 @@ function ServicesTab() {
                   className={`py-1.5 px-3 text-xs border transition-colors uppercase ${svc.active ? "border-yellow-800/20 text-yellow-400/60 hover:text-yellow-400" : "border-green-800/20 text-green-400/60 hover:text-green-400"}`}>
                   {svc.active ? "Hide" : "Show"}
                 </button>
-                <button onClick={() => remove(svc.id, svc.name)} className="py-1.5 px-3 text-xs border border-red-800/20 text-red-400/40 hover:text-red-400 hover:border-red-800/50 transition-colors">🗑</button>
+
               </div>
             </div>
           ))}

@@ -304,7 +304,7 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   onClose: () => void; onSaved: () => void;
 }) {
   const isEdit    = !!product;
-  //const [, setToken] = useState(initialToken);
+  //const [ setToken] = useState(initialToken);
 
 
 
@@ -606,17 +606,6 @@ export default function AdminProductsPage() {
     loadProducts(search);
   }
 
-  async function handleHardDelete(id: string, name: string) {
-    if (!confirm(`Permanently delete "${name}"?\n\nThis cannot be undone. Only works if the product has no orders.`)) return;
-    setDeleting(id);
-    const { ok, error } = await apiFetch(`/api/admin/products/${id}`, { method: "DELETE" });
-    setDeleting(null);
-    if (!ok) {
-      alert(error ?? "Cannot delete — this product has existing orders. Use Hide instead.");
-    }
-    loadProducts(search);
-  }
-
   const filtered = search
     ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.category.name.toLowerCase().includes(search.toLowerCase()))
     : products;
@@ -703,10 +692,7 @@ export default function AdminProductsPage() {
                     }`}>
                     {deleting === product.id ? "…" : (product as any).isActive === false ? "Restore" : "Hide"}
                   </button>
-                  <button onClick={() => handleHardDelete(product.id, product.name)} disabled={deleting === product.id}
-                    className="py-1.5 px-2 text-xs border border-red-800/20 text-red-400/40 hover:text-red-400 hover:border-red-800/50 transition-colors disabled:opacity-30">
-                    🗑
-                  </button>
+
                 </div>
               </div>
             </div>

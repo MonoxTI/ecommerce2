@@ -206,7 +206,7 @@ export default function ServicesPage() {
             <span className="text-xs tracking-[0.3em] uppercase text-black/50">Book with Us</span>
           </div>
           <h1 className="font-serif text-5xl md:text-6xl text-black font-light mb-3">Our Services</h1>
-          <p className="text-[#666] text-base">Professional wig installation, makeup, and hair care services.</p>
+          <p className="text-[#666] text-base">Professional wig installation, makeup, and wig care services.</p>
         </div>
 
         {/* Tabs — only shown when logged in */}

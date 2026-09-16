@@ -19,7 +19,7 @@ const colors = {
 const DEFAULT_COLLECTIONS = [
   { id: "default-1", title: "Transparent Lace Front",  subtitle: "Natural hairline, effortless style", href: "/shop?category=lace-front-wigs",  imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80" },
   { id: "default-2", title: "HD Lace",     subtitle: "Undetectable. Unmatched.",           href: "/shop?category=hd-lace-wigs",     imageUrl: "https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=800&q=80" },
-  { id: "default-3", title: "Bundles",   subtitle: "Versatile styling, all day wear",    href: "/shop?category=full-lace-wigs",   imageUrl: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80" },
+  { id: "default-3", title: "Bundles",   subtitle: "Versatile styling, all day wear",    href: "/shop?category=full-lace-wigs",   imageUrl: "https://res.cloudinary.com/phgagmub/image/upload/v1789368969/WhatsApp_Image_2026-07-25_at_2.40.02_PM_1_nzxrkx.jpg" },
   { id: "default-4", title: "Glueless",    subtitle: "Install in minutes, no glue needed", href: "/shop?category=glueless-wigs",    imageUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&q=80" },
 ];
 

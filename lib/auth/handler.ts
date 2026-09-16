@@ -99,10 +99,6 @@ export async function handleLogin(req: NextRequest) {
   const tokens = await issueTokenPair(user.id, user.email, user.role);
   await setAuthCookies(tokens);
 
-  // Note: accessToken is intentionally NOT included in the response body.
-  // It's already set as an httpOnly cookie — returning it here would
-  // expose it to any client-side JS on the page (defeats the point of
-  // httpOnly). The browser client should rely on the cookie alone.
   return ok({
     user: {
       id:    user.id,
@@ -110,6 +106,7 @@ export async function handleLogin(req: NextRequest) {
       email: user.email,
       role:  user.role,
     },
+    accessToken: tokens.accessToken,
   });
 }
 
@@ -155,9 +152,7 @@ export async function handleRefresh(req: NextRequest) {
   }
 
   await setAuthCookies(tokens);
-
-  // accessToken intentionally omitted from the body — see handleLogin.
-  return ok(null, "Token refreshed");
+  return ok({ accessToken: tokens.accessToken }, "Token refreshed");
 }
 
 // ─── ME ──────────────────────────────────────────────────────
@@ -205,10 +200,8 @@ export async function handleForgotPassword(req: NextRequest) {
     const token     = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    // Store token in DB (you can add a PasswordReset model, or store on User).
-    // Stored here as a "reset_"-prefixed refresh token. NOTE: rotateRefreshToken()
-    // explicitly rejects any token with this prefix, so this token can only ever
-    // be consumed by handleResetPassword() below — never used to log in.
+    // Store token in DB (you can add a PasswordReset model, or store on User)
+    // For now we store it as a special refresh token with a prefix
     await db.refreshToken.create({
       data: {
         token:     `reset_${token}`,
@@ -217,54 +210,20 @@ export async function handleForgotPassword(req: NextRequest) {
       },
     });
 
-    // Send password reset email
+    // Send password reset email via mailer.ts
     const appUrl    = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const resetLink = `${appUrl}/auth/reset-password?token=${token}`;
 
     try {
-      const { Resend } = await import("resend");
-      const resend = new Resend(process.env.RESEND_API_KEY!);
-      const FROM   = process.env.EMAIL_FROM ?? "onboarding@resend.dev";
-
-      await resend.emails.send({
-        from:    FROM,
-        to:      user.email,
-        subject: "Reset your novaa password",
-        html: `
-          <div style="font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; background: #F5F5F5;">
-            <div style="background: #1A1A1A; padding: 28px 36px; text-align: center; margin-bottom: 0;">
-              <h1 style="color: #fff; font-size: 28px; font-weight: 300; letter-spacing: 8px; margin: 0 0 4px;">novaa</h1>
-              <p style="color: #B8965A; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin: 0;">elevated beauty, with purpose.</p>
-            </div>
-            <div style="background: #fff; padding: 40px 36px;">
-              <h2 style="color: #1A1A1A; font-size: 22px; font-weight: 300; margin: 0 0 16px;">Reset your password</h2>
-              <p style="color: #555; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">
-                Hi ${user.name?.split(" ")[0] ?? "there"},<br/><br/>
-                We received a request to reset your password. Click the button below — this link expires in <strong>1 hour</strong>.
-              </p>
-              <div style="text-align: center; margin: 32px 0;">
-                <a href="${resetLink}"
-                  style="background: #1A1A1A; color: #fff; text-decoration: none; padding: 14px 32px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-family: Arial, sans-serif; font-weight: 600; display: inline-block;">
-                  Reset Password
-                </a>
-              </div>
-              <p style="color: #999; font-size: 12px; line-height: 1.6; margin: 24px 0 0;">
-                If you didn&apos;t request this, you can safely ignore this email. Your password will not change.
-              </p>
-              <p style="color: #bbb; font-size: 11px; margin: 12px 0 0; word-break: break-all;">
-                Or copy this link: ${resetLink}
-              </p>
-            </div>
-            <div style="text-align: center; padding: 20px; color: #aaa; font-size: 11px;">
-              © ${new Date().getFullYear()} novaa. All rights reserved.
-            </div>
-          </div>
-        `,
+      const { sendPasswordResetEmail } = await import("@/lib/emails/mailer");
+      await sendPasswordResetEmail({
+        to:        user.email,
+        firstName: user.name?.split(" ")[0] ?? "there",
+        resetLink,
       });
       console.log(`[Auth] Password reset email sent to ${email}`);
     } catch (err) {
       console.error(`[Auth] Failed to send reset email to ${email}:`, err);
-      // Don't expose email errors to the user
     }
   }
 
@@ -302,16 +261,15 @@ export async function handleResetPassword(req: NextRequest) {
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
   // Update password + revoke all sessions (force re-login)
-  await db.$transaction([
-    db.user.update({
-      where: { id: resetRecord.userId },
-      data:  { password: passwordHash },
-    }),
-    db.refreshToken.updateMany({
-      where: { userId: resetRecord.userId },
-      data:  { revoked: true },
-    }),
-  ]);
+  // Separate queries — Neon doesn't support array-style transactions
+  await db.user.update({
+    where: { id: resetRecord.userId },
+    data:  { password: passwordHash },
+  });
+  await db.refreshToken.updateMany({
+    where: { userId: resetRecord.userId },
+    data:  { revoked: true },
+  });
 
   return ok(null, "Password reset successfully. Please log in.");
 }
