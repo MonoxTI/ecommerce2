@@ -25,12 +25,27 @@ export async function POST(req: NextRequest) {
   const successUrl = `${appUrl}/checkout/success?orderId=${order.id}`;
   const cancelUrl  = `${appUrl}/checkout/cancelled?orderId=${order.id}`;
 
-  const { id: checkoutId, redirectUrl } = await createYocoCheckout({
-    orderId:     order.id,
-    amountCents: Number(order.total),
-    successUrl,
-    cancelUrl,
-  });
+  // Check Yoco is configured
+  if (!process.env.YOCO_SECRET_KEY) {
+    return badRequest("Yoco is not configured. Add YOCO_SECRET_KEY to your environment variables.");
+  }
+
+  let checkoutId: string;
+  let redirectUrl: string;
+
+  try {
+    const result = await createYocoCheckout({
+      orderId:     order.id,
+      amountCents: Number(order.total),
+      successUrl,
+      cancelUrl,
+    });
+    checkoutId  = result.id;
+    redirectUrl = result.redirectUrl;
+  } catch (err: any) {
+    console.error("[Yoco] Checkout creation failed:", err.message);
+    return badRequest(err.message ?? "Failed to create Yoco checkout session");
+  }
 
   // Store pending payment
   await db.payment.upsert({
