@@ -304,7 +304,7 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   onClose: () => void; onSaved: () => void;
 }) {
   const isEdit    = !!product;
-  //const [ setToken] = useState(initialToken);
+  const [, setToken] = useState(initialToken);
 
 
 
@@ -565,7 +565,7 @@ export default function AdminProductsPage() {
   useEffect(() => {
     async function init() {
       const [productsResult, categoriesResult] = await Promise.all([
-        productsApi.list({ limit: "50" }),
+        apiFetch("/api/admin/products?limit=50"),
         productsApi.getCategories(),
       ]);
       if (productsResult.data) {
@@ -582,9 +582,8 @@ export default function AdminProductsPage() {
 
   async function loadProducts(q = "") {
     setLoading(true);
-    const params: Record<string, string> = { limit: "50" };
-    if (q) params.search = q;
-    const { data } = await productsApi.list(params);
+    const qs = q ? `?limit=50&search=${encodeURIComponent(q)}` : "?limit=50";
+    const { data } = await apiFetch(`/api/admin/products${qs}`);
     if (data) {
       setProducts(data.items ?? []);
       setTotal(data.meta?.total ?? 0);

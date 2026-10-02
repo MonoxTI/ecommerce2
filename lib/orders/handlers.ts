@@ -137,7 +137,7 @@ export async function handleCheckout(req: NextRequest) {
   // ── 6. Shipping cost ─────────────────────────────────────
   // Free shipping over R1,000 (100000 cents), else R99 (9900 cents)
   const afterDiscount = subtotal - discountAmount;
-  const shippingCost  = afterDiscount >= 100_000 ? 0 : 9_900;
+  const shippingCost  = 0; // Free shipping
 
   // ── 7. Final total ───────────────────────────────────────
   const total = afterDiscount + shippingCost;
