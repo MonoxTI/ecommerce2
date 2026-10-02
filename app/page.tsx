@@ -17,10 +17,10 @@ const colors = {
 
 // Default Shop by Type cards shown if none are configured in the admin
 const DEFAULT_COLLECTIONS = [
-  { id: "default-1", title: "Transparent Lace Front",  subtitle: "Natural hairline, effortless style", href: "/shop?category=lace-front-wigs",  imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80" },
-  { id: "default-2", title: "HD Lace",     subtitle: "Undetectable. Unmatched.",           href: "/shop?category=hd-lace-wigs",     imageUrl: "https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=800&q=80" },
-  { id: "default-3", title: "Bundles",   subtitle: "Versatile styling, all day wear",    href: "/shop?category=full-lace-wigs",   imageUrl: "https://res.cloudinary.com/phgagmub/image/upload/v1789368969/WhatsApp_Image_2026-07-25_at_2.40.02_PM_1_nzxrkx.jpg" },
-  { id: "default-4", title: "Glueless",    subtitle: "Install in minutes, no glue needed", href: "/shop?category=glueless-wigs",    imageUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&q=80" },
+  { id: "default-1", title: "HD Lace",     subtitle: "Undetectable. Unmatched.",           href: "/shop?category=hd-lace-wigs",     imageUrl: "https://res.cloudinary.com/phgagmub/image/upload/v1790882371/IMG_6257.JPG_wivu2v.jpg" },
+  { id: "default-2", title: "Glueless",    subtitle: "Install in minutes, no glue needed", href: "/shop?category=glueless-wigs",    imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80" },
+  { id: "default-3", title: "Bundles and Closures",   subtitle: "Versatile styling, all day wear",    href: "/shop?category=full-lace-wigs",   imageUrl: "https://res.cloudinary.com/phgagmub/image/upload/v1790869220/WhatsApp_Image_2026-09-30_at_6.43.24_AM_nwwgb8.jpg" },
+  { id: "default-4", title: "Transparent Lace Front",  subtitle: "Natural hairline, effortless style", href: "/shop?category=lace-front-wigs",  imageUrl: "https://res.cloudinary.com/phgagmub/image/upload/v1790882371/IMG_6254.JPG_mvnmyv.jpg" },
 ];
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -82,7 +82,7 @@ export default function HomePage() {
   return (
     <div className={`${colors.bg} min-h-screen`}>
 
-     {/* ── HERO WITH BIG LOGO ─────────────────────────── */}
+      {/* ── HERO ─────────────────────────────────────────── */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 z-0" style={{
@@ -98,7 +98,6 @@ export default function HomePage() {
         <div className="relative z-20 max-w-screen-xl mx-auto px-6 md:px-12 pt-12 pb-16 w-full">
           <div className="flex flex-col items-center text-center">
             
-            {/* BIG LOGO - Main Focus */}
             <div className="mb-8 md:mb-12">
               <img 
                 src="/3.png" 
@@ -113,38 +112,35 @@ export default function HomePage() {
               Premium Human Hair Wigs
             </p>
             <p className={`${colors.textLight} text-sm md:text-base leading-relaxed max-w-2xl mb-12 font-light`}>
-              Handcrafted using 100% virgin human hair. Lace so natural, no one will know.
+              Handcrafted using 100% virgin human hair. Seamless by design. Made with intention.
             </p>
-
-            {/* CTA Buttons */}
-            <div className="flex gap-6 flex-wrap justify-center mb-16">
+            <div className="flex gap-4 flex-wrap">
               <Link href="/shop"
-                className="inline-flex items-center gap-3 bg-black text-white px-12 py-5 text-xs tracking-[0.25em] uppercase font-medium hover:opacity-80 transition-opacity">
+                className="inline-flex items-center gap-3 bg-black text-white px-10 py-4 text-xs tracking-[0.2em] uppercase font-medium hover:opacity-80 transition-opacity">
                 Shop Collection
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
               <Link href="/shop?category=hd-lace-wigs"
-                className="inline-flex items-center border border-black/30 text-black px-12 py-5 text-xs tracking-[0.25em] uppercase font-medium hover:bg-black hover:text-white transition-all">
+                className="inline-flex items-center border border-black/30 text-black px-10 py-4 text-xs tracking-[0.2em] uppercase font-medium hover:bg-black hover:text-white transition-all">
                 HD Lace
               </Link>
             </div>
-
-            {/* Stats */}
-            <div className="flex gap-16 md:gap-24 pt-10 border-t border-black/10 flex-wrap justify-center">
-              {[["500+", "Happy Customers"],["Free Shipping"], ["100%", "Human Hair"]].map(([val, label]) => (
-                <div key={label} className="text-center">
-                  <div className="font-serif text-3xl md:text-5xl text-black font-semibold leading-none">{val}</div>
-                  <div className={`${colors.textLight} text-xs tracking-[0.2em] uppercase mt-3`}>{label}</div>
+            <div className="flex gap-12 mt-20 pt-10 border-t border-black/10 flex-wrap">
+              {[
+                { val: "500+", label: "Happy Customers" },
+                { val: "100%", label: "Human Hair" },
+                { val: "Free", label: "Shipping" },
+              ].map(({ val, label }) => (
+                <div key={label}>
+                  <div className="font-serif text-4xl text-black font-semibold leading-none">{val}</div>
+                  <div className={`${colors.textLight} text-xs tracking-[0.15em] uppercase mt-2`}>{label}</div>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20">
-          <div className="w-px h-16 bg-gradient-to-b from-black/40 to-transparent" />
-        </div>
+        
       </section>
 
       {/* ── FEATURED PRODUCTS ────────────────────────────── */}
@@ -232,20 +228,20 @@ export default function HomePage() {
             <SectionLabel>Shop By Type</SectionLabel>
             <h2 className="font-serif text-5xl md:text-6xl text-black font-light">Find Your Perfect Match</h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {collections.map((col) => (
               <Link key={col.id ?? col.title} href={col.href}
-                className="group relative block overflow-hidden aspect-[3/4] border border-black/10 rounded-sm">
+                className="group relative block overflow-hidden aspect-[4/5] sm:aspect-[3/4] border border-black/10 rounded-sm">
                 <img src={col.imageUrl ?? col.image} alt={col.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                   loading="lazy" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8">
-                  <span className="block text-white/80 text-[0.65rem] tracking-[0.25em] uppercase mb-3">{col.subtitle}</span>
-                  <h3 className="font-serif text-white text-4xl font-light mb-5">{col.title}</h3>
+                <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6">
+                  <span className="block text-white/80 text-[0.6rem] tracking-[0.2em] uppercase mb-2">{col.subtitle}</span>
+                  <h3 className="font-serif text-white text-2xl md:text-3xl font-light mb-3">{col.title}</h3>
                   <span className="text-white/90 text-xs tracking-[0.15em] uppercase inline-flex items-center gap-2">
                     Shop Now
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </span>
                 </div>
               </Link>

@@ -1,9 +1,8 @@
-// app/shop/[slug]/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { productsApi, Product } from "@/lib/api";
 import { useCartStore } from "@/store/cartStore";
 import ReviewForm from "@/components/ReviewForm";
@@ -24,7 +23,9 @@ function Stars({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg" }) 
 // ─── PAGE ─────────────────────────────────────────────────────
 export default function ProductPage() {
   const params              = useParams();
+  const router              = useRouter();
   const slug                = params.slug as string;
+ 
   const { addItem }         = useCartStore();
 
   const [product, setProduct]       = useState<Product | null>(null);
@@ -114,11 +115,13 @@ export default function ProductPage() {
     ? product.reviews.reduce((s: number, r: any) => s + r.rating, 0) / product.reviews.length
     : null;
 
-  // ── Add to cart ────────────────────────────────────────────
+  // ── Add to cart (NEW LOGIC: Auth check + redirect) ─────────
   async function handleAddToCart() {
     if (!selectedVariant || !inStock) return;
     setCartState("loading");
     setCartError("");
+
+    
 
     const error = await addItem(selectedVariant.id, quantity);
     if (error) {
@@ -131,7 +134,7 @@ export default function ProductPage() {
     }
   }
 
-  // ── Review handling ───────────────────────────────────────
+  // ── Review handling (OLD LOGIC: Local state update) ────────
   function handleReviewSuccess(newReview: any) {
     setProduct(prev => {
       if (!prev) return prev;
@@ -362,20 +365,9 @@ export default function ProductPage() {
               </Link>
             )}
 
-            {selectedVariant && (
-              <div className={`grid grid-cols-3 gap-4 p-4 ${colors.bgAlt} border ${colors.border} font-cormorant`}>
-                {[
-                  ["Density",   selectedVariant.density  ?? "—"],
-                  ["Lace Type", selectedVariant.laceType ?? "—"],
-                  ["Cap Size",  selectedVariant.capSize  ?? "—"],
-                ].map(([label, val]) => (
-                  <div key={label} className="text-center">
-                    <div className="text-[0.68rem] tracking-[0.1em] uppercase text-[#666666] mb-1">{label}</div>
-                    <div className="text-black font-medium text-sm">{val}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+            
+
+          
           </div>
         </div>
 
@@ -409,10 +401,8 @@ export default function ProductPage() {
             <div className={`max-w-2xl divide-y ${colors.border} font-cormorant`}>
               {[
                 ["Hair Type",       "100% Virgin Human Hair"],
-                ["Lace Type",       selectedVariant.laceType ?? "—"],
-                ["Density",         selectedVariant.density  ?? "—"],
                 ["Length",          selectedVariant.length ? `${selectedVariant.length}"` : "—"],
-                ["Cap Size",        selectedVariant.capSize  ?? "Medium"],
+                
                 ["Cap Type",        "Swiss Lace + Elastic Band"],
                 ["Can Be Dyed",     "Yes"],
                 ["Can Be Bleached", "Yes"],

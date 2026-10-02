@@ -89,8 +89,8 @@ function CategoryModal({ onClose, onCreated }: {  onClose: () => void; onCreated
 
 // ─── VARIANT ROW ──────────────────────────────────────────────
 
-interface VF { id?: string; sku: string; price: string; stock: string; color: string; length: string; }
-const EMPTY_V: VF = { sku: "", price: "", stock: "", color: "", length: "" };
+interface VF { id?: string; sku: string; price: string; stock: string; color: string; length: string; curlType: string; }
+const EMPTY_V: VF = { sku: "", price: "", stock: "", color: "", length: "", curlType: "" };
 
 function VariantRow({ v, i, onChange, onRemove, onSave, onDeleteVariant, isSaved}: {
   v: VF; i: number;
@@ -140,7 +140,7 @@ function VariantRow({ v, i, onChange, onRemove, onSave, onDeleteVariant, isSaved
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-        {([["sku","SKU","BWL-001"],["price","Price (R)","1899"],["stock","Stock","10"],["color","Color","Natural Black"],["length",'Length"',"18"]] as [keyof VF, string, string][]).map(([field, label, ph]) => (
+        {([["sku","SKU","BWL-001"],["price","Price (R)","1899"],["stock","Stock","10"],["color","Color","Natural Black"],["length",'Length"',"18"],["curlType","Curl Type","Body Wave"]] as [keyof VF, string, string][]).map(([field, label, ph]) => (
           <div key={field}>
             <FL>{label}</FL>
             <Inp value={v[field]} onChange={e => onChange(i, field, e.target.value)} placeholder={ph} readOnly={field === "stock" && isSaved} />
@@ -304,9 +304,6 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   onClose: () => void; onSaved: () => void;
 }) {
   const isEdit    = !!product;
-  const [, setToken] = useState(initialToken);
-
-
 
   const [name, setName]               = useState(product?.name ?? "");
   const [slug, setSlug]               = useState(product?.slug ?? "");
@@ -315,12 +312,13 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   const [categoryId, setCategoryId]   = useState(product?.category.id ?? "");
   const [variants, setVariants]       = useState<VF[]>(
     product?.variants.map(v => ({
-      id:    v.id,
-      sku:   v.sku,
-      price: String((v.price / 100).toFixed(0)),
-      stock: String(v.stock),
-      color: v.color  ?? "",
-      length:v.length ?? "",
+      id:       v.id,
+      sku:      v.sku,
+      price:    String((v.price / 100).toFixed(0)),
+      stock:    String(v.stock),
+      color:    v.color    ?? "",
+      length:   v.length   ?? "",
+      curlType: (v as any).curlType ?? "",
     })) ?? [{ ...EMPTY_V }]
   );
   const [images, setImages]           = useState<{ id: string; url: string }[]>(product?.images ?? []);
@@ -385,11 +383,12 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
       onSaved();
     } else {
       const variantData = variants.map(v => ({
-        sku:    v.sku,
-        price:  Math.round(parseFloat(v.price || "0") * 100),
-        stock:  parseInt(v.stock || "0"),
-        color:  v.color  || undefined,
-        length: v.length || undefined,
+        sku:      v.sku,
+        price:    Math.round(parseFloat(v.price || "0") * 100),
+        stock:    parseInt(v.stock || "0"),
+        color:    v.color    || undefined,
+        length:   v.length   || undefined,
+        curlType: v.curlType || undefined,
       }));
       const { ok, error } = await apiFetch("/api/admin/products", {
         method: "POST", body: JSON.stringify({ name, slug, description, brand, categoryId, variants: variantData }),

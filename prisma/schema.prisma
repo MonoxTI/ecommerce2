@@ -208,6 +208,7 @@ model ProductVariant {
   density   String?   // "150%", "180%", "200%"
   laceType  String?   // "HD Lace", "Transparent", "4x4", "13x4", "Full Lace"
   capSize   String?   // "Small", "Medium", "Large", "Average"
+  curlType  String?
 
   cartItems  CartItem[]
   orderItems OrderItem[]
@@ -363,4 +364,17 @@ model Coupon {
 enum DiscountType {
   FIXED      // e.g., R100 off
   PERCENTAGE // e.g., 10% off
+}
+
+// ─── RATE LIMITING ─────────────────────────────────────────────
+// Shared rate limit store — works across all Vercel serverless instances.
+// Proxy upserts into this table instead of using an in-memory Map.
+
+model RateLimitWindow {
+  key         String   @id               // "{ip}:{pathname}"
+  count       Int      @default(1)
+  windowStart DateTime @default(now()) @map("window_start") // 👈 Add @map here
+
+  @@map("rate_limit_windows")
+  @@index([windowStart])
 }

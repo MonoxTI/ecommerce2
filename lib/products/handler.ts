@@ -138,6 +138,7 @@ export async function handleGetProducts(req: NextRequest) {
           density:  true,
           laceType: true,
           capSize:  true,
+          curlType: true,
         },
       },
       reviews: { select: { rating: true } },
@@ -224,6 +225,7 @@ export async function handleGetProduct(
           density:  true,
           laceType: true,
           capSize:  true,
+          curlType: true,
         },
       },
       reviews: {

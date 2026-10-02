@@ -298,16 +298,14 @@ export async function handleChangePassword(req: NextRequest) {
   const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
   // Update password + revoke all existing sessions
-  await db.$transaction([
-    db.user.update({
-      where: { id: user.id },
-      data:  { password: passwordHash },
-    }),
-    db.refreshToken.updateMany({
-      where: { userId: user.id },
-      data:  { revoked: true },
-    }),
-  ]);
+  await db.user.update({
+    where: { id: user.id },
+    data:  { password: passwordHash },
+  });
+  await db.refreshToken.updateMany({
+    where: { userId: user.id },
+    data:  { revoked: true },
+  });
 
   await clearAuthCookies();
   return ok(null, "Password changed successfully. Please log in again.");

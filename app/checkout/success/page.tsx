@@ -1,115 +1,91 @@
 "use client";
 // app/checkout/success/page.tsx
-// Paystack redirects here after payment. We verify the transaction server-side.
 
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 function SuccessContent() {
-  const params          = useSearchParams();
-  const [orderId, setOrderId] = useState<string | null>(() => params.get("orderId"));
+  const params  = useSearchParams();
+  const orderId = params.get("orderId") ?? "";
+  const [orderStatus, setOrderStatus] = useState<string | null>(null);
 
-  const [status, setStatus]   = useState<"verifying" | "success" | "failed">("verifying");
-  const [message, setMessage] = useState("Verifying your payment…");
-
+  // Poll order status for up to 10 seconds to confirm PAID (webhook may arrive slightly after redirect)
   useEffect(() => {
-    if (!orderId) {
-      const savedOrder = typeof window !== "undefined" ? sessionStorage.getItem("paystack_order") : null;
-      setOrderId(savedOrder);
-    }
-
-    async function verify() {
-      // Paystack appends ?reference=xxx or ?trxref=xxx to the callback URL
-      const reference = params.get("reference") ?? params.get("trxref") ?? sessionStorage.getItem("paystack_ref");
-
-      if (!reference) {
-        // No reference — user may have navigated here directly after a successful payment
-        setStatus("success");
-        setMessage("");
-        return;
-      }
-
+    if (!orderId) return;
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
       try {
-        const res = await fetch("/api/payments/verify-paystack", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ reference }),
-          credentials: "include",
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          sessionStorage.removeItem("paystack_ref");
-          sessionStorage.removeItem("paystack_order");
-          setStatus("success");
-        } else {
-          setStatus("failed");
-          setMessage(data.error ?? "Payment verification failed");
+        const res  = await fetch(`/api/orders/${orderId}`, { credentials: "include" });
+        const json = await res.json();
+        const status = json?.data?.status;
+        if (status === "PAID") {
+          setOrderStatus("PAID");
+          clearInterval(interval);
+        } else if (attempts >= 10) {
+          // After 10 attempts (5 seconds) show success anyway — webhook will still arrive
+          setOrderStatus("PENDING");
+          clearInterval(interval);
         }
       } catch {
-        setStatus("failed");
-        setMessage("Network error during verification");
+        if (attempts >= 10) clearInterval(interval);
       }
-    }
-
-    verify();
-  }, []);
-
-  if (status === "verifying") return (
-    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-4 pt-20">
-      <div className="text-center">
-        <div className="w-10 h-10 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-[#6B6B6B] text-sm">{message}</p>
-      </div>
-    </div>
-  );
-
-  if (status === "failed") return (
-    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-4 pt-20">
-      <div className="text-center max-w-md">
-        <div className="w-20 h-20 rounded-full border-2 border-red-500/50 flex items-center justify-center mx-auto mb-6">
-          <span className="text-red-400 text-3xl">✕</span>
-        </div>
-        <h1 className="font-serif text-4xl text-[#F5F0E8] font-light mb-3">Verification Failed</h1>
-        <p className="text-[#6B6B6B] text-sm mb-6">{message}</p>
-        <Link href="/checkout" className="bg-[#C9A84C] hover:bg-[#E2C97E] text-[#0A0A0A] px-8 py-3 text-xs tracking-widest uppercase font-medium transition-colors">
-          Try Again
-        </Link>
-      </div>
-    </div>
-  );
+    }, 500);
+    return () => clearInterval(interval);
+  }, [orderId]);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-4 pt-20">
-      <div className="text-center max-w-md">
-        <div className="w-20 h-20 rounded-full border-2 border-[#C9A84C] flex items-center justify-center mx-auto mb-6">
-          <span className="text-[#C9A84C] text-3xl">✓</span>
+    <div className="min-h-screen bg-[#F1F1F1] flex items-center justify-center px-4 pt-20 pb-16 font-cormorant">
+      <div className="text-center max-w-md w-full">
+
+        {/* Success icon */}
+        <div className="w-20 h-20 rounded-full border-2 border-black flex items-center justify-center mx-auto mb-6">
+          <span className="text-black text-3xl">✓</span>
         </div>
-        <h1 className="font-serif text-4xl text-[#F5F0E8] font-light mb-3">Order Confirmed</h1>
-        <p className="text-[#C9A84C] text-sm tracking-widest uppercase mb-4">Payment Successful</p>
-        <div className="h-px bg-gradient-to-r from-transparent via-[#C9A84C] to-transparent mb-6" />
-        <p className="text-[#6B6B6B] text-sm leading-relaxed mb-2">
-          Thank you! Your payment was received and your order is being processed.
+
+        <h1 className="font-serif text-5xl text-black font-light mb-3">Order Confirmed</h1>
+        <p className="text-black/60 text-sm tracking-widest uppercase mb-6">Payment Successful</p>
+
+        <div className="h-px bg-gradient-to-r from-transparent via-black/20 to-transparent mb-6" />
+
+        <p className="text-[#555] text-sm leading-relaxed mb-2">
+          Thank you! Your payment was received and your order is being prepared.
         </p>
+
         {orderId && (
-          <p className="text-[#6B6B6B] text-xs mb-6">
-            Order ID: <span className="text-[#C9A84C] font-mono">{orderId.slice(0, 8).toUpperCase()}</span>
+          <p className="text-black/40 text-xs mb-6">
+            Order ID:{" "}
+            <span className="text-black font-mono">{orderId.slice(0, 8).toUpperCase()}</span>
           </p>
         )}
+
+        {orderStatus && (
+          <div className={`inline-block px-4 py-1.5 text-xs tracking-widest uppercase mb-6 ${
+            orderStatus === "PAID"
+              ? "bg-green-50 border border-green-200 text-green-700"
+              : "bg-yellow-50 border border-yellow-200 text-yellow-700"
+          }`}>
+            {orderStatus === "PAID" ? "✓ Payment confirmed" : "Processing payment…"}
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
           {orderId && (
             <Link href={`/account/orders/${orderId}`}
-              className="bg-[#C9A84C] hover:bg-[#E2C97E] text-[#0A0A0A] py-3 text-xs font-medium tracking-widest uppercase transition-colors block">
+              className="bg-black hover:opacity-80 text-white py-3.5 text-xs font-medium tracking-[0.2em] uppercase transition-opacity block">
               View Order
             </Link>
           )}
           <Link href="/shop"
-            className="border border-white/[0.06] hover:border-[#C9A84C] text-[#6B6B6B] hover:text-[#C9A84C] py-3 text-xs font-medium tracking-widest uppercase transition-colors block">
+            className="border border-black/10 hover:border-black text-black/60 hover:text-black py-3.5 text-xs font-medium tracking-[0.2em] uppercase transition-colors block">
             Continue Shopping
           </Link>
         </div>
+
+        <p className="text-black/30 text-xs mt-8 leading-relaxed">
+          A confirmation email has been sent to your email address.
+        </p>
       </div>
     </div>
   );

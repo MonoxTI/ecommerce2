@@ -191,7 +191,7 @@ export default function ServicesPage() {
   }, {} as Record<string, Service[]>);
 
   return (
-    <div className="min-h-screen bg-[#F1F1F1] pt-24 pb-20 font-cormorant">
+    <div className="min-h-screen bg-[#F1F1F1] pt-24 pb-20 font-serif">
       <div className="max-w-5xl mx-auto px-6 md:px-8">
 
         {/* Header */}
