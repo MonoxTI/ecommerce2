@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   console.log(`[Yoco Webhook] Event: ${event.type}`);
 
   try {
-    let response: Response | void;
+    let response: Response | void = undefined;
     if (event.type === "payment.succeeded") {
       response = await processSuccess(event.payload);
     } else if (event.type === "payment.failed") {
