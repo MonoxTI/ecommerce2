@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
-  const signature = req.headers.get("x-yoco-signature") ?? "";
 
   // 1. Require the secret (Fail Closed)
   // If the secret is missing, we reject the request entirely to prevent spoofing.
@@ -18,14 +17,23 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Reject invalid signatures
-  if (!verifyYocoWebhook(rawBody, signature, YOCO_CONFIG.webhookSecret)) {
+  const sigOk = verifyYocoWebhook(
+    rawBody,
+    {
+      id:        req.headers.get("webhook-id"),
+      timestamp: req.headers.get("webhook-timestamp"),
+      signature: req.headers.get("webhook-signature"),
+    },
+    YOCO_CONFIG.webhookSecret
+  );
+  if (!sigOk) {
     console.error("[Yoco Webhook] Invalid signature");
     return new Response("Invalid signature", { status: 400 });
   }
 
   let event: any;
   try { 
-    event = JSON.parse(rawBody); 
+    event = JSON.parse(rawBody);
   } catch { 
     return new Response("Invalid JSON", { status: 400 }); 
   }

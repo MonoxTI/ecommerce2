@@ -1,4 +1,5 @@
 // lib/payments/yoco.ts
+import { createHmac, timingSafeEqual } from "crypto";
 // Yoco Online Payments — docs: https://developer.yoco.com/online/
 
 export const YOCO_CONFIG = {
@@ -32,7 +33,6 @@ export async function createYocoCheckout(params: {
       failureUrl:  params.cancelUrl,
       metadata: {
         orderId: params.orderId,
-        checkoutId: params.orderId,
       },
     }),
   });
@@ -50,18 +50,40 @@ export async function createYocoCheckout(params: {
 }
 
 // ─── VERIFY WEBHOOK SIGNATURE ─────────────────────────────────
+// Yoco signs webhooks Standard-Webhooks style:
+//   signed content = `${webhook-id}.${webhook-timestamp}.${rawBody}`
+//   key            = base64-decoded secret (without the "whsec_" prefix)
+//   signature      = base64(HMAC-SHA256), sent as "v1,<sig>" in `webhook-signature`
+//                    (the header may hold several space-separated signatures)
+// Docs: https://developer.yoco.com/guides/online-payments/webhooks/verifying-the-events
+const WEBHOOK_TOLERANCE_SECONDS = 180; // 3 minutes, as recommended by Yoco
+
 export function verifyYocoWebhook(
   rawBody: string,
-  signature: string,
+  headers: { id: string | null; timestamp: string | null; signature: string | null },
   secret: string
 ): boolean {
   try {
-    const crypto = require("crypto");
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(rawBody)
-      .digest("hex");
-    return expected === signature;
+    const { id, timestamp, signature } = headers;
+    if (!id || !timestamp || !signature || !secret) return false;
+
+    // Replay protection
+    const ts = Number(timestamp);
+    if (!Number.isFinite(ts)) return false;
+    if (Math.abs(Date.now() / 1000 - ts) > WEBHOOK_TOLERANCE_SECONDS) return false;
+
+    const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+    const expected = createHmac("sha256", key)
+      .update(`${id}.${timestamp}.${rawBody}`)
+      .digest("base64");
+    const expectedBuf = Buffer.from(expected);
+
+    return signature.split(" ").some((part) => {
+      const [version, sig] = part.split(",");
+      if (version !== "v1" || !sig) return false;
+      const sigBuf = Buffer.from(sig);
+      return sigBuf.length === expectedBuf.length && timingSafeEqual(sigBuf, expectedBuf);
+    });
   } catch {
     return false;
   }
