@@ -154,10 +154,10 @@ export default function Footer() {
         {/* Trust badges */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-8 border-y border-black/8 mb-10">
           {[
-            ["⊞", "Free Shipping"],
-            ["✦",  "100% Human Hair",  "Virgin hair guaranteed"],
-            ["↩",  "Easy Returns",     "14-day policy"],
-            ["⊛", "Secure Checkout",  "Yoco protected"],
+            ["🚚", "Free Shipping"],
+            ["🌟",  "100% Human Hair",  "Virgin hair guaranteed"],
+            ["🔙",  "Easy Returns",     "14-day policy"],
+            ["💳", "Secure Checkout",  "Yoco protected"],
           ].map(([icon, title, sub]) => (
             <div key={title as string} className="flex items-center gap-3">
               <span className="text-xl">{icon}</span>

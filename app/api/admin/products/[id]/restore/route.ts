@@ -17,14 +17,10 @@ export async function POST(
   const product = await db.product.findUnique({ where: { id } });
   if (!product) return notFound("Product not found");
 
-  try {
-    await db.product.update({
-      where: { id },
-      data:  { isActive: true } as any,
-    });
-  } catch {
-    // isActive doesn't exist — nothing to restore automatically
-  }
+  await db.product.update({
+    where: { id },
+    data:  { isActive: true },
+  });
 
-  return ok(null, "Product restored. Please manually update stock for each variant.");
+  return ok(null, "Product restored and visible in the shop again");
 }

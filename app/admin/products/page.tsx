@@ -590,17 +590,23 @@ export default function AdminProductsPage() {
     setLoading(false);
   }
 
-  async function handleArchive(id: string, name: string, currentlyInStock: boolean) {
-    // Since isActive is not in this schema, we hide by setting all variant stock to 0
-    if (!confirm(`${currentlyInStock ? "Hide" : "Restore"} "${name}"?\n\n${currentlyInStock ? "All variant stock will be set to 0 so it won\'t appear as available." : "You will need to manually restore stock for each variant."}`)) return;
+  async function handleArchive(id: string, name: string, currentlyVisible: boolean) {
+    const msg = currentlyVisible
+      ? `Hide "${name}"?\n\nIt will no longer appear in the shop. You can restore it at any time.`
+      : `Restore "${name}"?\n\nIt will appear in the shop again.`;
+    if (!confirm(msg)) return;
+
     setDeleting(id);
-    if (currentlyInStock) {
-      // Set all variants to stock 0 to effectively hide from shop
-      await apiFetch(`/api/admin/products/${id}/hide`, {
-        method: "POST",
-      });
-    }
+    const { ok, error } = await apiFetch(
+      `/api/admin/products/${id}/${currentlyVisible ? "hide" : "restore"}`,
+      { method: "POST" }
+    );
     setDeleting(null);
+
+    if (!ok) {
+      alert(error ?? `Could not ${currentlyVisible ? "hide" : "restore"} the product.`);
+      return;
+    }
     loadProducts(search);
   }
 

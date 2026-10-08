@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
   let event: any;
   try { 
-    event = JSON.parse(rawBody);
+    event = JSON.parse(rawBody); 
   } catch { 
     return new Response("Invalid JSON", { status: 400 }); 
   }
@@ -116,9 +116,16 @@ async function processSuccess(payload: any): Promise<Response | void> {
     data: { status: "PAID" } 
   });
 
-  buildOrderEmailParams(payment.orderId)
-    .then(p => sendOrderConfirmedEmail(p))
-    .catch(console.error);
+  // Await the email: on Vercel the function is frozen once the response is
+  // returned, so a fire-and-forget promise can be dropped before it sends.
+  // Failures are caught so they never turn a successful payment into a 500
+  // (which would make Yoco retry the webhook).
+  try {
+    const emailParams = await buildOrderEmailParams(payment.orderId);
+    await sendOrderConfirmedEmail(emailParams);
+  } catch (err) {
+    console.error("[Yoco Webhook] Order confirmation email failed:", err);
+  }
 
   console.log(`[Yoco Webhook] ✅ Order ${payment.orderId} marked as PAID`);
 }
