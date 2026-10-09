@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
     YOCO_CONFIG.webhookSecret
   );
   if (!sigOk) {
-    console.error("[Yoco Webhook] Invalid signature");
+    console.error("[Yoco Webhook] Invalid signature", {
+      hasId:        !!req.headers.get("webhook-id"),
+      hasTimestamp: !!req.headers.get("webhook-timestamp"),
+      hasSignature: !!req.headers.get("webhook-signature"),
+      secretLooksValid: YOCO_CONFIG.webhookSecret.trim().startsWith("whsec_"),
+    });
     return new Response("Invalid signature", { status: 400 });
   }
 

@@ -6,7 +6,18 @@ import { Resend } from "resend";
 import OrderConfirmed from "@/emails/OrderConfirmed";
 import OrderShipped   from "@/emails/OrderShipped";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+// Created lazily: `new Resend()` throws if the API key is missing, and doing it at
+// module load would crash every route that imports this file (e.g. the Yoco
+// webhook) before it could even mark an order as paid.
+let _resend: Resend | null = null;
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) {
+    console.error("[Email] RESEND_API_KEY is not set — email not sent");
+    return null;
+  }
+  return (_resend ??= new Resend(key));
+}
 
 // Your verified sending domain — update this once you verify your domain in Resend.
 // Until then, use "onboarding@resend.dev" which works for testing (sends only to your account email).
@@ -39,6 +50,8 @@ export async function sendOrderConfirmedEmail(params: {
   };
 }) {
   try {
+    const resend = getResend();
+    if (!resend) return false;
     const { data, error } = await resend.emails.send({
       from:    FROM,
       to:      params.to,
@@ -86,6 +99,8 @@ export async function sendOrderShippedEmail(params: {
   }[];
 }) {
   try {
+    const resend = getResend();
+    if (!resend) return false;
     const { data, error } = await resend.emails.send({
       from:    FROM,
       to:      params.to,
@@ -124,6 +139,8 @@ export async function sendPasswordResetEmail(params: {
   resetLink: string;
 }) {
   try {
+    const resend = getResend();
+    if (!resend) return false;
     const { data, error } = await resend.emails.send({
       from:    FROM,
       to:      params.to,

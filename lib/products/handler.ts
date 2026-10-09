@@ -104,8 +104,16 @@ export async function handleGetProducts(req: NextRequest) {
   if (minPrice !== undefined) variantFilter.price = { ...variantFilter.price, gte: minPrice };
   if (maxPrice !== undefined) variantFilter.price = { ...variantFilter.price, lte: maxPrice };
   if (color)    variantFilter.color    = { contains: color,    mode: "insensitive" };
-  if (length)   variantFilter.length   = length;
-  if (laceType) variantFilter.laceType = { contains: laceType, mode: "insensitive" };
+  if (length) {
+    const lengths = length.split(",").map(l => l.trim()).filter(Boolean);
+    if (lengths.length) variantFilter.length = { in: lengths };
+  }
+  if (laceType) {
+    const laces = laceType.split(",").map(l => l.trim()).filter(Boolean);
+    if (laces.length) {
+      variantFilter.OR = laces.map(l => ({ laceType: { equals: l, mode: "insensitive" } }));
+    }
+  }
 
   if (Object.keys(variantFilter).length > 0) {
     where.variants = { some: variantFilter };

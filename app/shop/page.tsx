@@ -22,52 +22,67 @@ const SORT_OPTIONS = [
   { value: "price_desc", label: "Price: High → Low" },
 ];
 
-const LENGTHS   = ["12", "14", "16", "18", "20", "22", "24", "26", "28"];
-const LACE_TYPES = ["Lace Front", "Full Lace", "HD Lace", "4x4", "13x4"];
+// Shows the lengths a product comes in, e.g. 18" or 12" – 26"
+function lengthLabel(product: Product): string | null {
+  const nums = [...new Set(product.variants.map(v => v.length).filter((l): l is string => !!l))]
+    .sort((a, b) => parseFloat(a) - parseFloat(b));
+  if (nums.length === 0) return null;
+  return nums.length === 1 ? `${nums[0]}"` : `${nums[0]}" – ${nums[nums.length - 1]}"`;
+}
 
 // ─── PRODUCT CARD ─────────────────────────────────────────────
+// The whole card links to /shop/[slug] so the customer can pick length,
+// colour, lace etc. Products with a single variant keep a quick "Add to Bag".
 
 function ProductCard({ product, onAddToCart }: { product: Product; onAddToCart: (p: Product) => void }) {
   const [hovered, setHovered] = useState(false);
-  const image = product.images[0]?.url;
+  const image   = product.images[0]?.url;
+  const href    = `/shop/${product.slug}`;
+  const lengths = lengthLabel(product);
+  const hasOptions = product.variants.length > 1;
+  const slideUp = `absolute bottom-0 left-0 right-0 bg-[#2C1F14]/90 backdrop-blur-sm text-[#FAF8F5] py-3.5 text-[0.68rem] tracking-[0.2em] uppercase font-medium text-center transition-all duration-300 hover:bg-[#B8965A] ${
+    hovered ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+  }`;
 
   return (
     <div
-      className="group relative cursor-pointer"
+      className="group relative"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Image */}
       <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F2ED]">
-        {image
-          ? <img src={image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.06]" />
-          : <div className="w-full h-full bg-[#E8E0D4] flex items-center justify-center text-[#C4B5A5] text-xs tracking-widest uppercase">No Image</div>
-        }
+        <Link href={href} aria-label={`View ${product.name}`} className="block w-full h-full">
+          {image
+            ? <img src={image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.06]" />
+            : <div className="w-full h-full bg-[#E8E0D4] flex items-center justify-center text-[#C4B5A5] text-xs tracking-widest uppercase">No Image</div>
+          }
+        </Link>
 
         {/* Badge */}
         {!product.inStock && (
-          <span className="absolute top-3 left-3 bg-[#8C7B6B] text-[#FAF8F5] text-[0.6rem] tracking-[0.15em] uppercase px-2.5 py-1">
+          <span className="absolute top-3 left-3 bg-[#8C7B6B] text-[#FAF8F5] text-[0.6rem] tracking-[0.15em] uppercase px-2.5 py-1 pointer-events-none">
             Sold Out
           </span>
         )}
 
-        {/* Slide-up add to cart */}
-        <button
-          onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
-          disabled={!product.inStock}
-          className={`absolute bottom-0 left-0 right-0 bg-[#2C1F14]/90 backdrop-blur-sm text-[#FAF8F5] py-3.5 text-[0.68rem] tracking-[0.2em] uppercase font-medium transition-all duration-300 hover:bg-[#B8965A] disabled:opacity-50 disabled:cursor-not-allowed ${
-            hovered ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
-          }`}
-        >
-          {product.inStock ? "Add to Bag" : "Out of Stock"}
-        </button>
+        {/* Slide-up action */}
+        {hasOptions || !product.inStock ? (
+          <Link href={href} className={slideUp}>
+            {product.inStock ? "Choose Options" : "View Details"}
+          </Link>
+        ) : (
+          <button onClick={() => onAddToCart(product)} className={slideUp}>
+            Add to Bag
+          </button>
+        )}
       </div>
 
       {/* Info */}
-      <Link href={`/shop/${product.slug}`} className="block pt-4 pb-5">
+      <Link href={href} className="block pt-4 pb-5">
         <p className="text-[#C4B5A5] text-[0.68rem] tracking-[0.15em] uppercase mb-1">
           {product.category.name}
-          {product.variants[0]?.length && ` · ${product.variants[0].length}"`}
+          {lengths && ` · ${lengths}`}
         </p>
         <h3 className="font-serif text-[#2C1F14] text-lg font-light leading-tight mb-2">
           {product.name}
@@ -129,6 +144,10 @@ function ShopContent() {
   const [activeLace, setActiveLace]         = useState<string[]>([]);
   const [activeLengths, setActiveLengths]   = useState<string[]>([]);
 
+  // Filter options come from the database (what actually exists in stock)
+  const [lengthOptions, setLengthOptions]   = useState<string[]>([]);
+  const [laceOptions, setLaceOptions]       = useState<string[]>([]);
+
   // Toast
   const [toast, setToast]           = useState("");
   const [toastVisible, setToastVisible] = useState(false);
@@ -140,6 +159,16 @@ function ShopContent() {
   useEffect(() => {
     productsApi.getCategories().then(({ data }) => {
       if (data) setCategories(Array.isArray(data) ? data : []);
+    });
+  }, []);
+
+  // Load available lengths / lace types once
+  useEffect(() => {
+    productsApi.getFilters().then(({ data }) => {
+      if (data) {
+        setLengthOptions(data.lengths ?? []);
+        setLaceOptions(data.laceTypes ?? []);
+      }
     });
   }, []);
 
@@ -157,8 +186,8 @@ function ShopContent() {
     };
     if (search)         params.search   = search;
     if (activeCategory) params.category = activeCategory;
-    if (activeLace[0])  params.laceType = activeLace[0];
-    if (activeLengths[0])params.length  = activeLengths[0];
+    if (activeLace.length)    params.laceType = activeLace.join(",");
+    if (activeLengths.length) params.length   = activeLengths.join(",");
 
     const { data } = await productsApi.list(params);
     if (data) {
@@ -307,9 +336,9 @@ function ShopContent() {
           {/* Desktop Sidebar */}
           <aside className="hidden md:block w-52 flex-shrink-0">
 
-            <FilterGroup title="Lace Type">
+            {laceOptions.length > 0 && <FilterGroup title="Lace Type">
               <div className="space-y-2.5">
-                {LACE_TYPES.map(type => (
+                {laceOptions.map(type => (
                   <label key={type} className="flex items-center gap-3 cursor-pointer group">
                     <input type="checkbox"
                       checked={activeLace.includes(type)}
@@ -322,11 +351,11 @@ function ShopContent() {
                   </label>
                 ))}
               </div>
-            </FilterGroup>
+            </FilterGroup>}
 
-            <FilterGroup title="Length">
+            {lengthOptions.length > 0 && <FilterGroup title="Length">
               <div className="flex flex-wrap gap-2">
-                {LENGTHS.map(len => (
+                {lengthOptions.map(len => (
                   <button key={len}
                     onClick={() => toggleFilter("length", len)}
                     className={`w-12 py-1.5 text-xs border transition-all ${
@@ -339,7 +368,7 @@ function ShopContent() {
                   </button>
                 ))}
               </div>
-            </FilterGroup>
+            </FilterGroup>}
 
           </aside>
 
@@ -416,26 +445,26 @@ function ShopContent() {
               <span className="text-[#2C1F14] text-xs tracking-[0.2em] uppercase font-medium">Filters</span>
               <button onClick={() => setSidebarOpen(false)} className="text-[#8C7B6B] text-xl">×</button>
             </div>
-            <FilterGroup title="Lace Type">
+            {laceOptions.length > 0 && <FilterGroup title="Lace Type">
               <div className="space-y-2.5">
-                {LACE_TYPES.map(type => (
+                {laceOptions.map(type => (
                   <label key={type} className="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" checked={activeLace.includes(type)} onChange={() => toggleFilter("lace", type)} className="accent-[#2C1F14]" />
                     <span className="text-sm text-[#8C7B6B]">{type}</span>
                   </label>
                 ))}
               </div>
-            </FilterGroup>
-            <FilterGroup title="Length">
+            </FilterGroup>}
+            {lengthOptions.length > 0 && <FilterGroup title="Length">
               <div className="flex flex-wrap gap-2">
-                {LENGTHS.map(len => (
+                {lengthOptions.map(len => (
                   <button key={len} onClick={() => toggleFilter("length", len)}
                     className={`w-12 py-1.5 text-xs border transition-all ${activeLengths.includes(len) ? "border-[#2C1F14] bg-[#2C1F14] text-[#FAF8F5]" : "border-[#E8E0D4] text-[#8C7B6B]"}`}>
                     {len}
                   </button>
                 ))}
               </div>
-            </FilterGroup>
+            </FilterGroup>}
             <button onClick={() => { clearFilters(); setSidebarOpen(false); }}
               className="w-full mt-4 border border-[#E8E0D4] text-[#8C7B6B] py-3 text-xs tracking-widest uppercase hover:border-[#B8965A] hover:text-[#B8965A] transition-colors">
               Clear All

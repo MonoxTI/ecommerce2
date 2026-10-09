@@ -72,7 +72,8 @@ export function verifyYocoWebhook(
     if (!Number.isFinite(ts)) return false;
     if (Math.abs(Date.now() / 1000 - ts) > WEBHOOK_TOLERANCE_SECONDS) return false;
 
-    const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+    const cleanSecret = secret.trim().replace(/^["']|["']$/g, "");
+    const key = Buffer.from(cleanSecret.replace(/^whsec_/, ""), "base64");
     const expected = createHmac("sha256", key)
       .update(`${id}.${timestamp}.${rawBody}`)
       .digest("base64");

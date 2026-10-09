@@ -40,6 +40,7 @@ export const productsApi = {
   },
   get: (slug: string) => request<Product>(`/api/products/${slug}`),
   getCategories: () => request<Category[]>("/api/categories"),
+  getFilters: () => request<{ lengths: string[]; laceTypes: string[] }>("/api/product-filters"),
 };
 
 export const cartApi = {
