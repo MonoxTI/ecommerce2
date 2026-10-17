@@ -224,10 +224,10 @@ export default function CheckoutPage() {
 
               <div className="mt-5 pt-5 border-t border-black/8 space-y-2">
                 {[
-                  ["🔒", "Secured by Yoco"],
+                  ["💳", "Secured by Yoco"],
                   ["🚚", "Free Shipping Nationwide"],
-                  ["✦",  "100% Human Hair Guarantee"],
-                  ["↩",  "14-Day Returns"],
+                  ["🌟",  "100% Human Hair Guarantee"],
+                  ["🔙",  "14-Day Returns"],
                 ].map(([icon, text]) => (
                   <div key={text as string} className="flex items-center gap-2">
                     <span className="text-sm">{icon}</span>
