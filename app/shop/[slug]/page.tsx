@@ -108,8 +108,10 @@ export default function ProductPage() {
     v => v.color === selectedColor && v.length === selectedLength
   ) ?? product.variants.find(v => v.stock > 0) ?? product.variants[0];
 
-  const inStock  = (selectedVariant?.stock ?? 0) > 0;
-  const lowStock = inStock && (selectedVariant?.stock ?? 0) <= 5;
+  const isPreOrder = !!product.isPreOrder;
+  const inStock    = (selectedVariant?.stock ?? 0) > 0;
+  const canBuy     = inStock || isPreOrder; // pre-orders can be bought without stock
+  const lowStock   = inStock && !isPreOrder && (selectedVariant?.stock ?? 0) <= 5;
 
   const avgRating = product.reviews?.length
     ? product.reviews.reduce((s: number, r: any) => s + r.rating, 0) / product.reviews.length
@@ -117,7 +119,7 @@ export default function ProductPage() {
 
   // ── Add to cart (NEW LOGIC: Auth check + redirect) ─────────
   async function handleAddToCart() {
-    if (!selectedVariant || !inStock) return;
+    if (!selectedVariant || !canBuy) return;
     setCartState("loading");
     setCartError("");
 
@@ -270,7 +272,7 @@ export default function ProductPage() {
                 <div className="flex flex-wrap gap-2">
                   {lengthsList.map((length) => {
                     const variant = product.variants.find(v => v.color === selectedColor && v.length === length);
-                    const unavailable = !variant || variant.stock === 0;
+                    const unavailable = !variant || (variant.stock === 0 && !isPreOrder);
                     return (
                       <button 
                         key={length}
@@ -291,7 +293,14 @@ export default function ProductPage() {
               </div>
             )}
 
-            {inStock
+            {isPreOrder ? (
+              <div className="border border-black/10 bg-white px-4 py-3 font-cormorant">
+                <p className="text-sm font-medium text-black tracking-wide uppercase">Available for pre-order</p>
+                <p className="text-sm text-[#666666] mt-1">
+                  {product.preOrderNote || "This item will ship as soon as it arrives. You pay now to reserve yours."}
+                </p>
+              </div>
+            ) : inStock
               ? <p className={`text-sm font-medium font-cormorant ${lowStock ? colors.lowStock : colors.inStock}`}>
                   {lowStock ? `⚠ Only ${selectedVariant?.stock} left` : "✓ In Stock"}
                 </p>
@@ -317,7 +326,7 @@ export default function ProductPage() {
                   {quantity}
                 </span>
                 <button
-                  onClick={() => setQuantity(Math.min(selectedVariant?.stock ?? 1, quantity + 1))}
+                  onClick={() => setQuantity(Math.min(isPreOrder ? 20 : (selectedVariant?.stock ?? 1), quantity + 1))}
                   className={`w-12 h-12 flex items-center justify-center text-[#666666] ${colors.hover} transition-colors text-lg border-l ${colors.border}`}
                   aria-label="Increase quantity"
                 >
@@ -327,13 +336,13 @@ export default function ProductPage() {
 
               <button 
                 onClick={handleAddToCart}
-                disabled={!inStock || cartState === "loading"}
+                disabled={!canBuy || cartState === "loading"}
                 className={`flex-1 h-12 px-6 flex items-center justify-center gap-2 text-xs tracking-[0.12em] uppercase font-medium transition-all font-cormorant ${
                   cartState === "added"
                     ? `${colors.buttonAdded} text-white`
                     : cartState === "loading"
                       ? "bg-black/60 text-white cursor-not-allowed"
-                      : inStock
+                      : canBuy
                         ? `${colors.buttonBg} text-white ${colors.buttonHover}`
                         : "bg-black/10 text-[#666666] cursor-not-allowed"
                 }`}>
@@ -344,9 +353,9 @@ export default function ProductPage() {
                   </span>
                 ) : cartState === "added" ? (
                   <>✓ Added to Cart</>
-                ) : inStock ? (
+                ) : canBuy ? (
                   <>
-                    Add to Cart
+                    {isPreOrder ? "Pre-order Now" : "Add to Cart"}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                       <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
                       <line x1="3" y1="6" x2="21" y2="6"/>
@@ -356,7 +365,7 @@ export default function ProductPage() {
               </button>
             </div>
 
-            {inStock && (
+            {canBuy && (
               <Link 
                 href="/checkout"
                 className={`block w-full py-3 text-center text-xs tracking-[0.12em] uppercase border border-black text-black ${colors.buttonHover} bg-white transition-colors font-cormorant`}

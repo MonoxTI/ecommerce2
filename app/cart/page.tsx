@@ -145,6 +145,11 @@ export default function CartPage() {
                         >
                           {item.product.name}
                         </Link>
+                        {item.product.isPreOrder && (
+                          <span className="ml-2 align-middle bg-black text-white text-[0.6rem] tracking-[0.15em] uppercase px-2 py-0.5">
+                            Pre-order
+                          </span>
+                        )}
                         <p className={`${colors.textLight} text-xs mt-1`}>
                           {[item.variant.color, item.variant.length && `${item.variant.length}"`, item.variant.laceType].filter(Boolean).join(" · ")}
                         </p>

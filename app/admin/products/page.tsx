@@ -309,6 +309,8 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
   const [slug, setSlug]               = useState(product?.slug ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
   const [brand, setBrand]             = useState(product?.brand ?? "");
+  const [isPreOrder, setIsPreOrder]   = useState<boolean>(product?.isPreOrder ?? false);
+  const [preOrderNote, setPreOrderNote] = useState(product?.preOrderNote ?? "");
   const [categoryId, setCategoryId]   = useState(product?.category.id ?? "");
   const [variants, setVariants]       = useState<VF[]>(
     product?.variants.map(v => ({
@@ -376,7 +378,7 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
 
     if (isEdit) {
       const { ok, error } = await apiFetch(`/api/admin/products/${product.id}`, {
-        method: "PATCH", body: JSON.stringify({ name, slug, description, brand, categoryId }),
+        method: "PATCH", body: JSON.stringify({ name, slug, description, brand, categoryId, isPreOrder, preOrderNote: preOrderNote.trim() || null }),
       });
       setLoading(false);
       if (!ok) return setError(error ?? "Failed to update");
@@ -391,7 +393,7 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
         curlType: v.curlType || undefined,
       }));
       const { ok, error } = await apiFetch("/api/admin/products", {
-        method: "POST", body: JSON.stringify({ name, slug, description, brand, categoryId, variants: variantData }),
+        method: "POST", body: JSON.stringify({ name, slug, description, brand, categoryId, isPreOrder, preOrderNote: preOrderNote.trim() || null, variants: variantData }),
       });
       setLoading(false);
       if (!ok) return setError(error ?? "Failed to create product");
@@ -481,6 +483,35 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
                   rows={5}
                   className="w-full bg-[#1A1A1A] border border-white/[0.08] text-[#F5F0E8] px-3 py-2.5 text-sm outline-none focus:border-[#C9A84C] transition-colors placeholder:text-[#6B6B6B] resize-none"
                 />
+              </div>
+
+              {/* PRE-ORDER */}
+              <div className="border border-white/[0.08] bg-[#1A1A1A] p-4 space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isPreOrder}
+                    onChange={e => setIsPreOrder(e.target.checked)}
+                    className="mt-1 accent-[#C9A84C] w-4 h-4"
+                  />
+                  <span>
+                    <span className="block text-[#F5F0E8] text-sm">Available for pre-order</span>
+                    <span className="block text-[#6B6B6B] text-xs mt-0.5">
+                      Customers can buy this product even when stock is 0. Stock is not deducted for pre-orders.
+                    </span>
+                  </span>
+                </label>
+                {isPreOrder && (
+                  <div>
+                    <FL>Pre-order note (shown to customers)</FL>
+                    <Inp
+                      value={preOrderNote}
+                      onChange={e => setPreOrderNote(e.target.value)}
+                      placeholder="Ships in 2–3 weeks"
+                      maxLength={200}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -670,7 +701,8 @@ export default function AdminProductsPage() {
                 )}
                 <div className="absolute top-2 left-2 flex flex-col gap-1">
                   {(product as any).isActive === false && <span className="bg-black/80 text-white text-[0.6rem] px-1.5 py-0.5 tracking-wider uppercase">Hidden</span>}
-                  {!product.inStock && (product as any).isActive !== false && <span className="bg-red-500/80 text-white text-[0.6rem] px-1.5 py-0.5 tracking-wider uppercase">Out of Stock</span>}
+                  {product.isPreOrder && <span className="bg-[#C9A84C] text-black text-[0.6rem] px-1.5 py-0.5 tracking-wider uppercase">Pre-order</span>}
+                  {!product.inStock && !product.isPreOrder && (product as any).isActive !== false && <span className="bg-red-500/80 text-white text-[0.6rem] px-1.5 py-0.5 tracking-wider uppercase">Out of Stock</span>}
                   {product.inStock && product.totalStock <= 5 && <span className="bg-orange-500/80 text-white text-[0.6rem] px-1.5 py-0.5 tracking-wider uppercase">Low Stock</span>}
                 </div>
               </div>

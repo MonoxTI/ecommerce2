@@ -33,6 +33,7 @@ async function getCartWithTotals(userId: string) {
                   id:   true,
                   name: true,
                   slug: true,
+                  isPreOrder: true,
                   images: {
                     select: { url: true },
                     take:   1,
@@ -75,6 +76,7 @@ async function getCartWithTotals(userId: string) {
       id:    item.variant.product.id,
       name:  item.variant.product.name,
       slug:  item.variant.product.slug,
+      isPreOrder: item.variant.product.isPreOrder,
       image: item.variant.product.images[0]?.url ?? null,
     },
     lineTotal: item.variant.price * item.quantity, // cents
@@ -123,9 +125,11 @@ export async function handleAddToCart(req: NextRequest) {
 
   // Verify variant exists and has enough stock
   const variant = await db.productVariant.findUnique({
-    where: { id: variantId },
+    where:   { id: variantId },
+    include: { product: { select: { isActive: true, isPreOrder: true } } },
   });
   if (!variant) return notFound("Product variant not found");
+  if (!variant.product.isActive) return badRequest("This product is no longer available");
 
   // Get or create the user's cart
   let cart = await db.cart.findUnique({ where: { userId: user.sub } });
@@ -140,8 +144,10 @@ export async function handleAddToCart(req: NextRequest) {
 
   const newQuantity = (existingItem?.quantity ?? 0) + quantity;
 
-  // Validate stock
-  if (newQuantity > variant.stock) {
+  // Validate stock (pre-order products are not limited by stock)
+  if (variant.product.isPreOrder) {
+    if (newQuantity > 20) return badRequest("You can pre-order at most 20 units at a time");
+  } else if (newQuantity > variant.stock) {
     return badRequest(
       variant.stock === 0
         ? "This item is out of stock"
@@ -192,7 +198,7 @@ export async function handleUpdateCartItem(
       id:   itemId,
       cart: { userId: user.sub },
     },
-    include: { variant: true },
+    include: { variant: { include: { product: { select: { isPreOrder: true } } } } },
   });
   if (!item) return notFound("Cart item not found");
 
@@ -203,8 +209,10 @@ export async function handleUpdateCartItem(
     return ok(updatedCart, "Item removed from cart");
   }
 
-  // Validate stock
-  if (quantity > item.variant.stock) {
+  // Validate stock (pre-order products are not limited by stock)
+  if (item.variant.product.isPreOrder) {
+    if (quantity > 20) return badRequest("You can pre-order at most 20 units at a time");
+  } else if (quantity > item.variant.stock) {
     return badRequest(
       `Only ${item.variant.stock} unit${item.variant.stock === 1 ? "" : "s"} available`
     );

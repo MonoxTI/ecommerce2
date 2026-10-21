@@ -344,11 +344,20 @@ export async function handleUpdateProduct(
     if (slugTaken) return conflict("This slug is already in use");
   }
 
-  const { variants, ...productData } = parsed.data;
+  const { variants, categoryId, ...productData } = parsed.data;
+
+  // Prisma's update only accepts the category as a relation, not a raw categoryId
+  if (categoryId && categoryId !== existing.categoryId) {
+    const category = await db.category.findUnique({ where: { id: categoryId } });
+    if (!category) return badRequest("Category not found");
+  }
 
   const product = await db.product.update({
     where: { id },
-    data:  productData,
+    data:  {
+      ...productData,
+      ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
+    },
     include: {
       category: { select: { name: true, slug: true } },
       variants: true,

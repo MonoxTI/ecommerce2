@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
   try {
     const result = await createYocoCheckout({
       orderId:     order.id,
+      orderNumber: order.id.slice(0, 8).toUpperCase(), // same number customers see (#00E363FD)
       amountCents: Number(order.total),
       successUrl,
       cancelUrl,

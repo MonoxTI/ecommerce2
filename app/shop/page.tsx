@@ -40,6 +40,8 @@ function ProductCard({ product, onAddToCart }: { product: Product; onAddToCart: 
   const href    = `/shop/${product.slug}`;
   const lengths = lengthLabel(product);
   const hasOptions = product.variants.length > 1;
+  const preOrder   = !!product.isPreOrder;
+  const soldOut    = !product.inStock && !preOrder;
   const slideUp = `absolute bottom-0 left-0 right-0 bg-black/90 backdrop-blur-sm text-white py-3.5 text-[0.68rem] tracking-[0.2em] uppercase font-medium text-center transition-all duration-300 hover:bg-[#333333] ${
     hovered ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
   }`;
@@ -60,16 +62,20 @@ function ProductCard({ product, onAddToCart }: { product: Product; onAddToCart: 
         </Link>
 
         {/* Badge */}
-        {!product.inStock && (
+        {preOrder ? (
+          <span className="absolute top-3 left-3 bg-black text-white text-[0.6rem] tracking-[0.15em] uppercase px-2.5 py-1 pointer-events-none">
+            Pre-order
+          </span>
+        ) : soldOut && (
           <span className="absolute top-3 left-3 bg-[#666666] text-white text-[0.6rem] tracking-[0.15em] uppercase px-2.5 py-1 pointer-events-none">
             Sold Out
           </span>
         )}
 
         {/* Slide-up action */}
-        {hasOptions || !product.inStock ? (
+        {hasOptions || soldOut || preOrder ? (
           <Link href={href} className={slideUp}>
-            {product.inStock ? "Choose Options" : "View Details"}
+            {soldOut ? "View Details" : preOrder ? "Pre-order" : "Choose Options"}
           </Link>
         ) : (
           <button onClick={() => onAddToCart(product)} className={slideUp}>

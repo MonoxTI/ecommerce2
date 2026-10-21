@@ -76,7 +76,7 @@ export async function handleCheckout(req: NextRequest) {
         include: {
           variant: {
             include: {
-              product: { select: { id: true, name: true, slug: true } },
+              product: { select: { id: true, name: true, slug: true, isActive: true, isPreOrder: true } },
             },
           },
         },
@@ -90,6 +90,11 @@ export async function handleCheckout(req: NextRequest) {
 
   // ── 3. Validate stock for every item ─────────────────────
   for (const item of cart.items) {
+    if (!item.variant.product.isActive) {
+      return badRequest(`"${item.variant.product.name}" is no longer available. Please remove it from your cart.`);
+    }
+    // Pre-order products can be bought without stock
+    if (item.variant.product.isPreOrder) continue;
     if (item.variant.stock < item.quantity) {
       return badRequest(
         item.variant.stock === 0
@@ -156,6 +161,7 @@ export async function handleCheckout(req: NextRequest) {
             variantId: item.variantId,
             quantity:  item.quantity,
             price:     item.variant.price, // snapshot price at time of order
+            isPreOrder: item.variant.product.isPreOrder, // snapshot: no stock is taken for pre-orders
           })),
         },
         payment: {
@@ -184,6 +190,7 @@ export async function handleCheckout(req: NextRequest) {
 
     // Decrement stock for each variant
     for (const item of cart.items) {
+      if (item.variant.product.isPreOrder) continue; // pre-orders don't use stock
       await tx.productVariant.update({
         where: { id: item.variantId },
         data:  { stock: { decrement: item.quantity } },
@@ -340,6 +347,7 @@ export async function handleCancelOrder(
   await db.$transaction(async (tx) => {
     // Restore stock
     for (const item of order.items) {
+      if (item.isPreOrder) continue; // no stock was taken for pre-orders
       await tx.productVariant.update({
         where: { id: item.variantId },
         data:  { stock: { increment: item.quantity } },

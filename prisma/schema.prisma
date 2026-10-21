@@ -121,6 +121,11 @@ model Product {
   reviews     Review[]
 
   isActive Boolean @default(true)
+
+  // Pre-order: can be bought with no stock; stock is not decremented
+  isPreOrder   Boolean @default(false)
+  preOrderNote String? // e.g. "Ships in 2–3 weeks"
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -290,6 +295,7 @@ model OrderItem {
 
   quantity  Int
   price     Int  // 👈 Changed from Float: snapshot price in CENTS at time of purchase
+  isPreOrder Boolean @default(false) // snapshot: was a pre-order when bought (no stock was taken)
 
   @@map("order_items")
   @@index([orderId])

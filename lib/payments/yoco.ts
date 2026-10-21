@@ -14,6 +14,7 @@ export const YOCO_CONFIG = {
 
 export async function createYocoCheckout(params: {
   orderId:     string;
+  orderNumber?: string;  // short human-readable number, e.g. "00E363FD"
   amountCents: number;   // in cents (ZAR)
   currency?:   string;
   successUrl:  string;
@@ -33,6 +34,8 @@ export async function createYocoCheckout(params: {
       failureUrl:  params.cancelUrl,
       metadata: {
         orderId: params.orderId,
+        ...(params.orderNumber ? { orderNumber: params.orderNumber } : {}),
+        source: "novaa",
       },
     }),
   });
