@@ -60,7 +60,7 @@ export const ProductVariantSchema = z.object({
   density:  z.string().optional(),
   laceType: z.string().optional(),
   capSize:  z.string().optional(),
-  curlType: z.string().optional(),
+  curlType: z.string().trim().max(50).nullable().optional(),
 });
 
 export const ProductSchema = z.object({

@@ -18,7 +18,7 @@ const colors = {
 // Default Shop by Type cards shown if none are configured in the admin
 const DEFAULT_COLLECTIONS = [
   { id: "default-1", title: "HD Lace",     subtitle: "Undetectable. Unmatched.",           href: "/shop?category=hd-lace-wigs",     imageUrl: "https://res.cloudinary.com/phgagmub/image/upload/v1790882371/IMG_6257.JPG_wivu2v.jpg" },
-  { id: "default-2", title: "Glueless",    subtitle: "Install in minutes, no glue needed", href: "/shop?category=glueless-wigs",    imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80" },
+  { id: "default-2", title: "Glueless",    subtitle: "Install in minutes, no glue needed", href: "/shop?category=glueless-wigs",    imageUrl: "https://res.cloudinary.com/phgagmub/image/upload/v1793176451/IMG_3610.JPG_sbe0rk.jpg" },
   { id: "default-3", title: "Bundles and Closures",   subtitle: "Versatile styling, all day wear",    href: "/shop?category=full-lace-wigs",   imageUrl: "https://res.cloudinary.com/phgagmub/image/upload/v1790869220/WhatsApp_Image_2026-09-30_at_6.43.24_AM_nwwgb8.jpg" },
   { id: "default-4", title: "Transparent Lace Front",  subtitle: "Natural hairline, effortless style", href: "/shop?category=lace-front-wigs",  imageUrl: "https://res.cloudinary.com/phgagmub/image/upload/v1790882371/IMG_6254.JPG_mvnmyv.jpg" },
 ];
@@ -87,7 +87,7 @@ export default function HomePage() {
         {/* Background */}
         <div className="absolute inset-0 z-0" style={{
           background: `linear-gradient(180deg, rgba(241,241,241,0.95) 0%, rgba(241,241,241,0.9) 100%),
-            url('https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=1600&q=80') center/cover no-repeat`,
+            url('https://res.cloudinary.com/phgagmub/image/upload/v1793176454/IMG_3607.JPG_xjmfno.jpg') center/cover no-repeat`,
         }} />
         
         {/* Decorative elements */}

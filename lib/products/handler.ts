@@ -196,7 +196,7 @@ export async function handleGetAllProducts(req: NextRequest) {
       category: { select: { id: true, name: true, slug: true } },
       images:   { select: { id: true, url: true }, take: 1 },
       variants: {
-        select: { id: true, sku: true, price: true, stock: true, color: true, length: true },
+        select: { id: true, sku: true, price: true, stock: true, color: true, length: true, curlType: true },
       },
       reviews: { select: { rating: true } },
     },

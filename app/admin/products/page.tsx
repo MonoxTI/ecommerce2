@@ -356,6 +356,8 @@ function ProductDrawer({ product, categories, onClose, onSaved }: {
       stock:    parseInt(v.stock || "0"),
       color:    v.color    || undefined,
       length:   v.length   || undefined,
+      // Optional: a value saves it, blank clears it
+      curlType: v.curlType.trim() || null,
     };
 
     if (v.id) {

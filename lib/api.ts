@@ -131,7 +131,7 @@ export const adminApi = {
 // ─── TYPES ────────────────────────────────────────────────────
 export interface User { id: string; name: string; email: string; phone: string; role: "CUSTOMER" | "ADMIN"; isActive: boolean; createdAt: string; _count?: { orders: number; reviews: number }; }
 export interface Category { id: string; name: string; slug: string; _count?: { products: number }; }
-export interface ProductVariant { id: string; sku: string; price: number; stock: number; color?: string; length?: string; density?: string; laceType?: string; capSize?: string; }
+export interface ProductVariant { id: string; sku: string; price: number; stock: number; color?: string; length?: string; density?: string; laceType?: string; capSize?: string; curlType?: string | null; }
 export interface Product { id: string; slug: string; isPreOrder?: boolean; preOrderNote?: string | null; name: string; description: string; brand?: string; category: Category; images: { id: string; url: string }[]; variants: ProductVariant[]; minPrice: number; maxPrice: number; avgRating: number | null; reviewCount: number; inStock: boolean; totalStock: number; reviews?: Review[]; }
 export interface CartItem { id: string; quantity: number; variantId: string; lineTotal: number; variant: ProductVariant; product: { id: string; name: string; slug: string; image: string | null; isPreOrder?: boolean }; }
 export interface Cart { id: string | null; items: CartItem[]; itemCount: number; subtotal: number; }
