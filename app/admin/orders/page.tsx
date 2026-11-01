@@ -16,6 +16,15 @@ const STATUS_STYLES: Record<string, string> = {
   CANCELLED: "bg-red-500/10 text-red-400 border-red-500/20",
 };
 
+function addressText(a?: Order["address"] | null) {
+  if (!a) return "";
+  return [a.fullName, a.phone, a.street, a.city, a.province, a.postalCode, a.country].filter(Boolean).join("\n");
+}
+
+function variantText(v: any) {
+  return [v?.color, v?.length && `${v.length}"`, v?.curlType, v?.laceType].filter(Boolean).join(" · ");
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders]       = useState<Order[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -25,6 +34,15 @@ export default function AdminOrdersPage() {
   const [newStatus, setNewStatus] = useState("");
   const [tracking, setTracking]   = useState({ trackingNumber: "", trackingUrl: "" });
   const [actionLoading, setActionLoading] = useState(false);
+  const [copied, setCopied]       = useState(false);
+
+  async function copyAddress(o: Order) {
+    try {
+      await navigator.clipboard.writeText(addressText(o.address));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard not available */ }
+  }
 
   async function load() {
     setLoading(true);
@@ -82,7 +100,7 @@ export default function AdminOrdersPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-white/[0.06]">
-              {["Order ID", "Customer", "Items", "Total", "Status", "Date", "Actions"].map(h => (
+              {["Order ID", "Customer", "Ship To", "Items", "Total", "Status", "Date", "Actions"].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs tracking-widest uppercase text-[#6B6B6B] font-normal">{h}</th>
               ))}
             </tr>
@@ -91,19 +109,27 @@ export default function AdminOrdersPage() {
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="border-b border-white/[0.06]">
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <td key={j} className="px-4 py-3"><div className="h-4 bg-white/[0.04] animate-pulse rounded" /></td>
                   ))}
                 </tr>
               ))
             ) : orders.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-[#6B6B6B]">No orders found</td></tr>
+              <tr><td colSpan={8} className="px-4 py-10 text-center text-[#6B6B6B]">No orders found</td></tr>
             ) : orders.map((order) => (
               <tr key={order.id} className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
                 <td className="px-4 py-3 font-mono text-[#F5F0E8] text-xs">{order.id.slice(0, 8).toUpperCase()}</td>
                 <td className="px-4 py-3 text-[#6B6B6B] text-xs">
                   <p className="text-[#F5F0E8]">{order.user?.name ?? "—"}</p>
                   <p>{order.user?.email ?? "—"}</p>
+                </td>
+                <td className="px-4 py-3 text-[#6B6B6B] text-xs max-w-[200px]">
+                  {order.address ? (
+                    <>
+                      <p className="text-[#F5F0E8]">{order.address.city}, {order.address.province}</p>
+                      <p className="truncate">{order.address.street}</p>
+                    </>
+                  ) : "—"}
                 </td>
                 <td className="px-4 py-3 text-[#6B6B6B]">{order.items?.length ?? "—"}</td>
                 <td className="px-4 py-3 text-[#C9A84C] font-serif">{formatPrice(order.total)}</td>
@@ -131,13 +157,67 @@ export default function AdminOrdersPage() {
       {selected && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
           onClick={() => setSelected(null)}>
-          <div className="bg-[#111111] border border-white/[0.06] p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#111111] border border-white/[0.06] p-6 w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-5">
               <div>
                 <h2 className="font-serif text-xl text-[#F5F0E8]">Order #{selected.id.slice(0, 8).toUpperCase()}</h2>
                 <p className="text-[#6B6B6B] text-xs mt-1">{selected.user?.name} — {formatPrice(selected.total)}</p>
               </div>
               <button onClick={() => setSelected(null)} className="text-[#6B6B6B] hover:text-[#F5F0E8] text-xl">×</button>
+            </div>
+
+            {/* Ship To */}
+            <div className="mb-5 border border-[#C9A84C]/30 bg-[#1A1A1A] p-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-[#C9A84C] text-xs tracking-widest uppercase">Ship To</p>
+                {selected.address && (
+                  <button onClick={() => copyAddress(selected)} className="text-[#6B6B6B] hover:text-[#C9A84C] text-xs transition-colors">
+                    {copied ? "Copied ✓" : "Copy address"}
+                  </button>
+                )}
+              </div>
+              {selected.address ? (
+                <div className="text-sm text-[#F5F0E8] leading-relaxed">
+                  <p className="font-medium">{selected.address.fullName}</p>
+                  <p>{selected.address.street}</p>
+                  <p>{selected.address.city}, {selected.address.province}</p>
+                  <p>{selected.address.postalCode} · {selected.address.country}</p>
+                  <p className="mt-2 text-[#6B6B6B] text-xs">
+                    Phone: <a href={`tel:${selected.address.phone}`} className="text-[#F5F0E8] hover:underline">{selected.address.phone}</a>
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-red-400">No address on this order.</p>
+              )}
+              <p className="mt-2 text-[#6B6B6B] text-xs">
+                Customer: {selected.user?.name} · {selected.user?.email}
+                {selected.user?.phone ? ` · ${selected.user.phone}` : ""}
+              </p>
+            </div>
+
+            {/* Items to prepare */}
+            <div className="mb-5">
+              <p className="text-[#6B6B6B] text-xs tracking-widest uppercase mb-2">Items to prepare</p>
+              <div className="border border-white/[0.06] divide-y divide-white/[0.06]">
+                {selected.items?.map((item) => (
+                  <div key={item.id} className="flex justify-between gap-3 px-3 py-2 text-sm">
+                    <div>
+                      <p className="text-[#F5F0E8]">
+                        {item.variant?.product?.name ?? "Product"}
+                        {item.isPreOrder && (
+                          <span className="ml-2 text-[10px] uppercase tracking-wider border border-[#C9A84C]/40 text-[#C9A84C] px-1.5 py-0.5">Pre-order</span>
+                        )}
+                      </p>
+                      <p className="text-[#6B6B6B] text-xs">{variantText(item.variant) || "Standard"} · SKU {item.variant?.sku}</p>
+                    </div>
+                    <p className="text-[#F5F0E8] whitespace-nowrap">× {item.quantity}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[#6B6B6B] text-xs mt-2">
+                Payment: <span className="text-[#F5F0E8]">{selected.payment?.status ?? "—"}</span>
+                {selected.status === "PENDING" && " — not paid yet, don't ship"}
+              </p>
             </div>
 
             {/* Update Status */}
