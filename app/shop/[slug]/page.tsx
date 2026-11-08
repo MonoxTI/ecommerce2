@@ -21,19 +21,24 @@ function Stars({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg" }) 
 }
 
 // ─── PAGE ─────────────────────────────────────────────────────
-export default function ProductPage() {
+export default function ProductClient({ initialProduct = null }: { initialProduct?: Product | null }) {
   const params              = useParams();
   const router              = useRouter();
   const slug                = params.slug as string;
  
   const { addItem }         = useCartStore();
 
-  const [product, setProduct]       = useState<Product | null>(null);
-  const [loading, setLoading]       = useState(true);
+  // When the server already fetched the product (SEO-friendly), render it immediately.
+  const initialVariant = initialProduct
+    ? (initialProduct.variants.find(v => v.stock > 0) ?? initialProduct.variants[0])
+    : undefined;
+
+  const [product, setProduct]       = useState<Product | null>(initialProduct);
+  const [loading, setLoading]       = useState(!initialProduct);
   const [notFound, setNotFound]     = useState(false);
 
-  const [selectedColor, setSelectedColor]   = useState("");
-  const [selectedLength, setSelectedLength] = useState("");
+  const [selectedColor, setSelectedColor]   = useState(initialVariant?.color ?? "");
+  const [selectedLength, setSelectedLength] = useState(initialVariant?.length ?? "");
   const [quantity, setQuantity]             = useState(1);
   const [activeImage, setActiveImage]       = useState(0);
   const [activeTab, setActiveTab]           = useState<"description" | "details" | "reviews">("description");
@@ -47,7 +52,7 @@ export default function ProductPage() {
 
   // ── Fetch product ──────────────────────────────────────────
   useEffect(() => {
-    if (!slug) return;
+    if (!slug || initialProduct) return; // already provided by the server
     setLoading(true);
     productsApi.get(slug).then(({ data, error }) => {
       if (error || !data) { setNotFound(true); setLoading(false); return; }
@@ -59,7 +64,7 @@ export default function ProductPage() {
       }
       setLoading(false);
     });
-  }, [slug]);
+  }, [slug, initialProduct]);
 
   // ── COLOR PALETTE (Cream / Black / White) ─────────────────
   const colors = {
@@ -411,8 +416,8 @@ export default function ProductPage() {
               {[
                 ["Hair Type",       "100% Virgin Human Hair"],
                 ["Length",          selectedVariant.length ? `${selectedVariant.length}"` : "—"],
-                
-                ["Cap Type",        "Swiss Lace + Elastic Band"],
+                ["Lace Type",       product.category.name],
+                ...(selectedVariant.curlType ? [["Curl Type", selectedVariant.curlType]] : []),
                 ["Can Be Dyed",     "Yes"],
                 ["Can Be Bleached", "Yes"],
                 ["SKU",             selectedVariant.sku],

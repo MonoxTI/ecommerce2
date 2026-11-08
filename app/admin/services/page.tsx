@@ -13,6 +13,7 @@ interface Availability {
 interface Appointment {
   id: string; date: string; startTime: string; endTime: string;
   status: string; notes?: string;
+  depositAmount?: number; depositPaid?: boolean; paidAt?: string | null; adminSeen?: boolean;
   service: { name: string; duration: number; price: number };
   user: { name: string; email: string; phone?: string };
 }
@@ -28,6 +29,9 @@ const STATUS_COLORS: Record<string,string> = {
   CONFIRMED: "border-green-800/30 text-green-400",
   CANCELLED: "border-red-800/30 text-red-400/70",
   COMPLETED: "border-white/[0.08] text-[#6B6B6B]",
+  AWAITING_PAYMENT: "border-yellow-800/30 text-yellow-400",
+  EXPIRED:   "border-white/[0.08] text-[#6B6B6B]",
+  CONFLICT:  "border-red-800/30 text-red-400",
 };
 
 function formatPrice(cents: number) {
@@ -366,12 +370,21 @@ function AppointmentsTab() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading]           = useState(true);
   const [filter, setFilter]             = useState("all");
+  const [newIds, setNewIds]             = useState<Set<string>>(new Set()); // shown with a "New" tag this visit
   const [updating, setUpdating]         = useState<string | null>(null);
 
   useEffect(() => {
     const params = filter !== "all" ? `?status=${filter}` : "";
     api(`/api/admin/appointments${params}`).then(({ data }) => {
-      if (Array.isArray(data)) setAppointments(data);
+      if (Array.isArray(data)) {
+        setAppointments(data);
+        const fresh = data.filter((a: Appointment) => a.depositPaid && a.adminSeen === false).map((a: Appointment) => a.id);
+        if (fresh.length) {
+          setNewIds(prev => new Set([...prev, ...fresh]));
+          // mark as seen so the sidebar badge / dashboard alert clear
+          api("/api/admin/appointments/new", { method: "POST", body: JSON.stringify({ ids: fresh }) });
+        }
+      }
       setLoading(false);
     });
   }, [filter]);
@@ -383,7 +396,7 @@ function AppointmentsTab() {
     if (ok) setAppointments(as => as.map(a => a.id === id ? { ...a, status } : a));
   }
 
-  const statuses = ["all", "PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"];
+  const statuses = ["all", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "CONFLICT", "AWAITING_PAYMENT"];
 
   return (
     <div>
@@ -412,6 +425,9 @@ function AppointmentsTab() {
               <div className="flex justify-between items-start gap-4 flex-wrap">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    {newIds.has(appt.id) && (
+                      <span className="text-[0.6rem] tracking-widest uppercase px-1.5 py-0.5 bg-red-600 text-white">New</span>
+                    )}
                     <p className="text-[#F5F0E8] font-medium text-sm">{appt.service.name}</p>
                     <span className={`text-[0.6rem] tracking-widest uppercase px-1.5 py-0.5 border ${STATUS_COLORS[appt.status] ?? "border-white/[0.08] text-[#6B6B6B]"}`}>
                       {appt.status}
@@ -426,6 +442,16 @@ function AppointmentsTab() {
                     <p className="text-[#6B6B6B] text-xs">✉ {appt.user.email}</p>
                     {appt.user.phone && <p className="text-[#6B6B6B] text-xs">📱 {appt.user.phone}</p>}
                   </div>
+                  <p className={`text-xs mt-2 ${appt.depositPaid ? "text-green-400" : "text-yellow-400/80"}`}>
+                    {appt.depositPaid
+                      ? `Deposit paid ${formatPrice(appt.depositAmount ?? 0)} · Balance due ${formatPrice(appt.service.price - (appt.depositAmount ?? 0))}`
+                      : appt.status === "AWAITING_PAYMENT"
+                        ? `Awaiting deposit of ${formatPrice(appt.depositAmount ?? 0)}`
+                        : `Price ${formatPrice(appt.service.price)} (no online deposit)`}
+                  </p>
+                  {appt.status === "CONFLICT" && (
+                    <p className="text-red-400 text-xs mt-1">Paid after the hold expired and the slot was taken — rebook the customer or refund the deposit in Yoco.</p>
+                  )}
                   {appt.notes && <p className="text-[#6B6B6B] text-xs mt-2 italic">"{appt.notes}"</p>}
                 </div>
                 {/* Status actions */}
@@ -440,9 +466,15 @@ function AppointmentsTab() {
                     </>
                   )}
                   {appt.status === "CONFIRMED" && (
-                    <GoldBtn onClick={() => updateStatus(appt.id, "COMPLETED")} disabled={updating === appt.id}>
-                      Mark Complete
-                    </GoldBtn>
+                    <>
+                      <GoldBtn onClick={() => updateStatus(appt.id, "COMPLETED")} disabled={updating === appt.id}>
+                        Mark Complete
+                      </GoldBtn>
+                      <button onClick={() => updateStatus(appt.id, "CANCELLED")} disabled={updating === appt.id}
+                        className="py-1.5 px-3 text-xs border border-red-800/20 text-red-400/60 hover:text-red-400 transition-colors uppercase">
+                        Cancel
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

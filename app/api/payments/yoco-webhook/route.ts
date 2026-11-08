@@ -3,6 +3,8 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/DB/prisma";
 import { verifyYocoWebhook, YOCO_CONFIG } from "@/lib/payments/yoco";
 import { sendOrderConfirmedEmail } from "@/lib/emails/mailer";
+import { sendBookingConfirmedEmail, sendAdminNewBookingEmail } from "@/lib/emails/bookingEmails";
+import { blocking } from "@/lib/appointments/holds";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +69,9 @@ export async function POST(req: NextRequest) {
 async function processSuccess(payload: any): Promise<Response | void> {
   const checkoutId = payload.metadata?.checkoutId ?? payload.checkoutId;
   const orderId = payload.metadata?.orderId;
+
+  // Service-booking deposit (not an order)
+  if (payload.metadata?.appointmentId) return processBookingDeposit(payload);
 
   if (!orderId && !checkoutId) {
     console.error("[Yoco Webhook] No orderId or checkoutId in payload");
@@ -136,6 +141,11 @@ async function processSuccess(payload: any): Promise<Response | void> {
 }
 
 async function processFailure(payload: any): Promise<Response | void> {
+  if (payload.metadata?.appointmentId) {
+    // Unpaid booking: the slot hold simply expires after 30 minutes
+    console.log(`[Yoco Webhook] ❌ Deposit failed for booking ${payload.metadata.appointmentId}`);
+    return;
+  }
   const checkoutId = payload.metadata?.checkoutId ?? payload.checkoutId;
   const payment = await db.payment.findFirst({
     where: { transactionId: checkoutId, provider: "yoco" },
@@ -184,4 +194,62 @@ async function buildOrderEmailParams(orderId: string) {
       postalCode: order.address.postalCode, country: order.address.country,
     } : { fullName: "", street: "", city: "", province: "", postalCode: "", country: "South Africa" },
   };
+}
+
+// ─── SERVICE BOOKING DEPOSIT (50%) ────────────────────────────
+async function processBookingDeposit(payload: any): Promise<Response | void> {
+  const appointmentId = String(payload.metadata.appointmentId);
+  const appt = await (db as any).appointment.findUnique({
+    where:   { id: appointmentId },
+    include: { service: true, user: { select: { name: true, email: true, phone: true } } },
+  });
+  if (!appt) {
+    console.error("[Yoco Webhook] Appointment not found:", appointmentId);
+    return new Response("Appointment not found", { status: 404 });
+  }
+  if (appt.depositPaid) return new Response("Already processed", { status: 200 });
+
+  const receivedAmount = payload.amount ?? payload.amountInCents;
+  if (typeof receivedAmount !== "number" || receivedAmount !== appt.depositAmount) {
+    console.error(`[Yoco Webhook] Deposit mismatch: expected ${appt.depositAmount}, got ${receivedAmount}`);
+    return new Response("Amount mismatch", { status: 400 });
+  }
+  if ((payload.currency ?? "ZAR") !== "ZAR") return new Response("Currency mismatch", { status: 400 });
+
+  // If the hold had expired, only confirm when nobody else took the slot meanwhile
+  let status: string = appt.status;
+  if (appt.status === "AWAITING_PAYMENT" || appt.status === "PENDING") {
+    status = "CONFIRMED";
+  } else if (appt.status === "EXPIRED") {
+    const clash = await (db as any).appointment.findFirst({
+      where: { id: { not: appt.id }, date: appt.date, startTime: { lt: appt.endTime }, endTime: { gt: appt.startTime }, ...blocking },
+    });
+    status = clash ? "CONFLICT" : "CONFIRMED";
+  }
+
+  // Atomic "first webhook wins" so retries never send duplicate emails
+  const upd = await (db as any).appointment.updateMany({
+    where: { id: appt.id, depositPaid: false },
+    data:  { depositPaid: true, paidAt: new Date(), status, adminSeen: false, paymentRef: payload.id ?? appt.paymentRef },
+  });
+  if (upd.count === 0) return new Response("Already processed", { status: 200 });
+
+  const data = {
+    id: appt.id, date: appt.date, startTime: appt.startTime, endTime: appt.endTime,
+    notes: appt.notes, depositAmount: appt.depositAmount,
+    service: { name: appt.service.name, price: appt.service.price, duration: appt.service.duration },
+    user: appt.user,
+  };
+  try {
+    if (status === "CONFIRMED") await sendBookingConfirmedEmail(data);
+    await sendAdminNewBookingEmail(
+      data,
+      status === "CONFLICT"
+        ? "ACTION NEEDED: the customer paid after the 30-minute hold expired and the slot was taken. Contact them to rebook or refund the deposit in the Yoco dashboard."
+        : undefined
+    );
+  } catch (err) {
+    console.error("[Yoco Webhook] Booking emails failed:", err);
+  }
+  console.log(`[Yoco Webhook] ✅ Booking ${appt.id} deposit paid → ${status}`);
 }

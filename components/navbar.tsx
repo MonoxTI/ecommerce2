@@ -3,12 +3,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 
 export default function Navbar() {
   const router              = useRouter();
+  const pathname            = usePathname();
+  const isAdminRoute        = !!pathname?.startsWith("/admin"); // compact bar inside the admin panel
   const { user, logout }    = useAuthStore();
   const { cart }            = useCartStore();
   const [scrolled, setScrolled] = useState(false);
@@ -30,11 +32,15 @@ export default function Navbar() {
   return (
     <>
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-white/95 backdrop-blur-md border-b border-black/10 py-2 shadow-sm"
-          : "bg-white border-b border-black/5 py-3"
+        isAdminRoute
+          ? "bg-white border-b border-black/10 py-0 shadow-sm"
+          : scrolled
+            ? "bg-white/95 backdrop-blur-md border-b border-black/10 py-2 shadow-sm"
+            : "bg-white border-b border-black/5 py-3"
       }`}>
-        <div className="max-w-screen-xl mx-auto px-6 md:px-12 flex items-center justify-between h-14">
+        <div className={`mx-auto px-6 flex items-center justify-between ${
+          isAdminRoute ? "h-16 max-w-none md:px-6" : "h-14 max-w-screen-xl md:px-12"
+        }`}>
 
           {/* Left nav */}
           <div className="hidden md:flex items-center gap-8 flex-1">
@@ -51,20 +57,13 @@ export default function Navbar() {
             <img
               src="/6.png"
               alt="novaa"
-              className="h-35 md:h-60 w-auto object-contain"
+              className={isAdminRoute ? "h-10 w-auto object-contain" : "h-35 md:h-60 w-auto object-contain"}
               style={{ opacity: 4.5 }}
             />
           </Link>
 
           {/* Right icons */}
           <div className="flex items-center gap-5 flex-1 justify-end">
-
-            <button aria-label="Search"
-              className="hidden md:block text-[#555] hover:text-black transition-colors">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-              </svg>
-            </button>
 
             {user ? (
               <div className="hidden md:flex items-center gap-4">

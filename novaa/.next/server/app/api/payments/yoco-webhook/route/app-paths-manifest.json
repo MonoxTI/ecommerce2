@@ -1,0 +1,3 @@
+{
+  "/api/payments/yoco-webhook/route": "app/api/payments/yoco-webhook/route.js"
+}

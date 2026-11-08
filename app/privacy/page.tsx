@@ -45,7 +45,7 @@ export default function PrivacyPolicyPage() {
                   Name, email address, phone number, and delivery address provided when you register or place an order.
                 </InfoBlock>
                 <InfoBlock title="Payment Information">
-                  We do not store your card details. All payments are processed securely through <strong className="text-black">Paystack</strong>. We only receive a transaction reference and status.
+                  We do not store your card details. All payments are processed securely through <strong className="text-black">Yoco</strong>. You enter your card details directly on Yoco's secure payment page. We only receive a transaction reference and status.
                 </InfoBlock>
                 <InfoBlock title="Order Information">
                   Details of products purchased, order history, and delivery status.
@@ -86,7 +86,7 @@ export default function PrivacyPolicyPage() {
                   Your name and delivery address are shared with our courier partners to fulfil your order.
                 </InfoBlock>
                 <InfoBlock title="Payment Processors">
-                  Paystack receives your email address and order amount to process payment. Their privacy policy applies to data they collect.
+                  Yoco receives your order amount and order reference to process payment, and collects your card details on its own secure page. Yoco's privacy policy applies to data they collect.
                 </InfoBlock>
                 <InfoBlock title="Email Service Providers">
                   We use Resend to send transactional emails such as order confirmations and password resets.
@@ -100,7 +100,7 @@ export default function PrivacyPolicyPage() {
 
           <Section number="04" title="Data Storage & Security">
             <>
-              <p className="mb-4">Your data is stored securely on servers hosted by Neon (PostgreSQL) and deployed via Vercel. We implement appropriate technical measures including:</p>
+              <p className="mb-4">Your data is stored securely in a PostgreSQL database on servers provided by our hosting provider, Truehost. We implement appropriate technical measures including:</p>
               <ul className="space-y-2">
                 {[
                   "Encrypted HTTPS connections on all pages",

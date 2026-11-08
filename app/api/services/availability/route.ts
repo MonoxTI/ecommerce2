@@ -3,6 +3,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/DB/prisma";
 import { ok, badRequest } from "@/lib/api/response";
+import { blocking, expireStaleHolds } from "@/lib/appointments/holds";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -31,9 +32,10 @@ export async function GET(req: NextRequest) {
     const service = await (db as any).service.findUnique({ where: { id: serviceId } });
     if (!service) return badRequest("Service not found");
 
-    // Get already booked slots
+    // Free up expired unpaid holds, then get slots that are still taken
+    await expireStaleHolds();
     const booked = await (db as any).appointment.findMany({
-      where: { date, status: { not: "CANCELLED" } },
+      where: { date, ...blocking },
       select: { startTime: true, endTime: true },
     });
 

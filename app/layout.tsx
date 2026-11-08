@@ -27,7 +27,7 @@ export const cormorantGaramond = Cormorant_Garamond({
 
 // ── METADATA (Server-only feature) ────────────────────────
 export const metadata: Metadata = {
-  title: "AuraWig | Premium Human Hair Wigs",
+  title: "Novaa | Premium Human Hair Wigs",
   description: "Luxury human hair wigs.",
   keywords: ["wigs", "lace front", "HD lace", "human hair", "luxury beauty", "South Africa"],
 };

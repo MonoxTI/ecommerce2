@@ -13,6 +13,7 @@ interface Service {
 interface Appointment {
   id: string; date: string; startTime: string; endTime: string;
   status: string; service: Service;
+  depositAmount?: number; depositPaid?: boolean;
 }
 interface AvailableDay {
   date: string;
@@ -56,9 +57,28 @@ export default function ServicesPage() {
   const [selectedSlot, setSelectedSlot]     = useState("");
   const [notes, setNotes]                   = useState("");
   const [booking, setBooking]               = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
   const [error, setError]                   = useState("");
   const [tab, setTab]                       = useState<"services" | "my-appointments">("services");
+  const [notice, setNotice]                 = useState<{ kind: "success" | "info"; text: string } | null>(null);
+
+  const refreshAppts = () =>
+    fetch("/api/appointments", { credentials: "include" }).then(r => r.json())
+      .then(j => { if (Array.isArray(j?.data)) setMyAppts(j.data); }).catch(() => {});
+
+  // Returning from Yoco (?booking=success | cancelled)
+  useEffect(() => {
+    const b = new URLSearchParams(window.location.search).get("booking");
+    if (!b) return;
+    window.history.replaceState(null, "", "/services");
+    if (b === "success") {
+      setNotice({ kind: "success", text: "Deposit received — your booking is confirmed. A confirmation email is on its way." });
+      setTab("my-appointments");
+      // the payment confirmation can take a few seconds to arrive
+      const t1 = setTimeout(refreshAppts, 3000), t2 = setTimeout(refreshAppts, 8000);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+    setNotice({ kind: "info", text: "Payment was not completed. Your time slot is held for 30 minutes — choose it again to retry." });
+  }, []);
 
   // Load services and appointments
   useEffect(() => {
@@ -161,23 +181,16 @@ export default function ServicesPage() {
         }),
       });
       const json = await res.json();
-      setBooking(false);
-      
+
       if (!res.ok) {
+        setBooking(false);
         return setError(json.error ?? "Booking failed. Please try again.");
       }
-      
-      setBookingSuccess(true);
-      setMyAppts(prev => [json.data, ...prev]);
-      
-      setTimeout(() => {
-        setBookingSuccess(false);
-        setSelectedService(null);
-        setSelectedDate("");
-        setSelectedSlot("");
-        setNotes("");
-        setTab("my-appointments");
-      }, 2000);
+
+      // Go to Yoco to pay the 50% deposit; the booking is confirmed once it is paid
+      const url = json.data?.redirectUrl;
+      if (!url) { setBooking(false); return setError("Could not start the payment. Please try again."); }
+      window.location.href = url;
     } catch (err) {
       setBooking(false);
       setError("Network error. Please try again.");
@@ -370,16 +383,19 @@ export default function ServicesPage() {
                     )}
 
                     {error && <p className="text-red-600 text-xs mb-3">{error}</p>}
-                    {bookingSuccess && (
-                      <div className="px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm mb-3">
-                        ✓ Appointment booked! We will confirm shortly.
+                    {selectedSlot && (
+                      <div className="mb-4 bg-[#F8F8F8] border border-black/10 p-3 text-sm text-[#444] space-y-1">
+                        <div className="flex justify-between"><span>Service price</span><span>{formatPrice(selectedService.price)}</span></div>
+                        <div className="flex justify-between font-medium text-black"><span>Deposit due now (50%)</span><span>{formatPrice(Math.ceil(selectedService.price / 2))}</span></div>
+                        <div className="flex justify-between"><span>Balance on the day</span><span>{formatPrice(selectedService.price - Math.ceil(selectedService.price / 2))}</span></div>
+                        <p className="text-[0.7rem] text-black/50 pt-1">Your slot is held for 30 minutes while you pay. Deposits are non-refundable for cancellations.</p>
                       </div>
                     )}
 
                     <button onClick={book}
                       disabled={!selectedDate || !selectedSlot || booking}
                       className="w-full bg-black hover:opacity-80 text-white py-3 text-xs tracking-[0.2em] uppercase transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">
-                      {booking ? "Booking…" : !user ? "Sign In to Book" : "Confirm Booking"}
+                      {booking ? "Redirecting to payment…" : !user ? "Sign In to Book" : selectedSlot ? `Pay ${formatPrice(Math.ceil(selectedService.price / 2))} deposit & book` : "Select a time"}
                     </button>
 
                     {!user && (
@@ -394,6 +410,12 @@ export default function ServicesPage() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {notice && (
+          <div className={`mb-6 px-4 py-3 text-sm border ${notice.kind === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-yellow-50 border-yellow-200 text-yellow-800"}`}>
+            {notice.text}
           </div>
         )}
 
@@ -420,6 +442,13 @@ export default function ServicesPage() {
                           {" "}at {appt.startTime} – {appt.endTime}
                         </p>
                         <p className="text-black/40 text-xs mt-1">{formatPrice(appt.service.price)} · {appt.service.duration} min</p>
+                        {appt.depositPaid ? (
+                          <p className="text-green-700 text-xs mt-1">
+                            Deposit paid {formatPrice(appt.depositAmount ?? 0)} · Balance due on the day {formatPrice(appt.service.price - (appt.depositAmount ?? 0))}
+                          </p>
+                        ) : appt.status === "AWAITING_PAYMENT" ? (
+                          <p className="text-yellow-700 text-xs mt-1">Deposit of {formatPrice(appt.depositAmount ?? 0)} not paid yet — the slot is released if unpaid after 30 minutes.</p>
+                        ) : null}
                       </div>
                       <span className={`text-[0.65rem] tracking-widest uppercase px-2 py-1 border ${
                         appt.status === "CONFIRMED"  ? "border-green-300 text-green-700 bg-green-50" :
@@ -427,7 +456,7 @@ export default function ServicesPage() {
                         appt.status === "COMPLETED"  ? "border-black/20 text-black/60" :
                         "border-yellow-300 text-yellow-700 bg-yellow-50"
                       }`}>
-                        {appt.status}
+                        {appt.status === "AWAITING_PAYMENT" ? "Awaiting payment" : appt.status}
                       </span>
                     </div>
                   </div>

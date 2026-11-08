@@ -96,7 +96,7 @@ export default function TermsPage() {
                   </li>
                 ))}
               </ul>
-              <p>Payments are processed securely through <strong className="text-black">Paystack</strong>. novaa does not store your card details. An order confirmation email will be sent once payment is received.</p>
+              <p>Payments are processed securely through <strong className="text-black">Yoco</strong>. novaa does not store your card details. An order confirmation email will be sent once payment is received.</p>
             </>
           </Section>
 

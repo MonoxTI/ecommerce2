@@ -2,17 +2,24 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/DB/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/admin/guard";
-import { ok } from "@/lib/api/response";
+import { ok, badRequest, notFound } from "@/lib/api/response";
+
+const ALLOWED = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"];
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireAdminUser(req);
   if (isErrorResponse(guard)) return guard;
   const { id } = await params;
   const body = await req.json().catch(() => null);
-  const appt = await (db as any).appointment.update({
-    where: { id },
-    data:  { status: body.status },
-    include: { service: true, user: { select: { name: true, email: true } } },
-  });
-  return ok(appt, "Appointment updated");
+  if (!body || !ALLOWED.includes(body.status)) return badRequest("Invalid status");
+  try {
+    const appt = await (db as any).appointment.update({
+      where: { id },
+      data:  { status: body.status },
+      include: { service: true, user: { select: { name: true, email: true } } },
+    });
+    return ok(appt, "Appointment updated");
+  } catch {
+    return notFound("Appointment not found");
+  }
 }

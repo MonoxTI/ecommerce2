@@ -60,19 +60,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Show nothing while rehydrating
   if (!ready || !user || user.role !== "ADMIN") return (
-    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-      <div className="w-6 h-6 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+    <div className="fixed inset-x-0 top-16 bottom-0 bg-[#F1F1F1] flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className={`min-h-screen ${colors.bg} font-cormorant flex mt-16`}>
+    // Fixed to the space under the top bar: sidebar + content always fit the screen,
+    // and only the content area scrolls.
+    <div className={`fixed inset-x-0 top-16 bottom-0 ${colors.bg} font-cormorant flex overflow-hidden`}>
       
       {/* Sidebar */}
-      <aside className={`w-56 ${colors.bgSidebar} border-r ${colors.border} flex flex-col fixed inset-y-0 left-0 z-50 ${colors.shadowSidebar}`}>
+      <aside className={`w-14 md:w-56 shrink-0 h-full ${colors.bgSidebar} border-r ${colors.border} flex flex-col ${colors.shadowSidebar}`}>
         
         {/* Logo */}
-        <div className={`px-5 py-6 border-b ${colors.border}`}>
+        <div className={`hidden md:block px-5 py-4 border-b ${colors.border}`}>
           <Link 
             href="/" 
             className="font-playfair text-xl font-semibold tracking-[0.15em] uppercase text-black hover:opacity-70 transition-opacity block"
@@ -85,28 +87,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-4 px-3 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto py-3 px-2 md:px-3 space-y-0.5">
           {NAV.map(({ href, label, icon }) => {
             const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
             return (
               <Link 
                 key={href} 
                 href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 text-sm transition-all duration-150 rounded-sm font-cormorant ${
+                className={`flex items-center justify-center md:justify-start gap-3 px-2 md:px-3 py-2 text-sm transition-all duration-150 rounded-sm font-cormorant ${
                   active
                     ? colors.activeLink
                     : `${colors.inactiveLink}`
                 }`}
               >
                 <span className="text-base leading-none">{icon}</span>
-                <span className="tracking-wide">{label}</span>
+                <span className="tracking-wide hidden md:inline">{label}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* User */}
-        <div className={`px-5 py-4 border-t ${colors.border} ${colors.bgHover} transition-colors`}>
+        <div className={`hidden md:block px-5 py-3 border-t ${colors.border} ${colors.bgHover} transition-colors`}>
           <p className={`${colors.text} text-xs font-medium truncate font-cormorant`}>{user.name}</p>
           <p className={`${colors.textLight} text-xs truncate font-cormorant`}>{user.email}</p>
           <Link 
@@ -119,9 +121,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main Content Area */}
-      <main className={`flex-1 ml-56 p-8 pt-8 ${colors.bgMain}`}>
+      <main className={`flex-1 min-w-0 h-full overflow-y-auto p-4 md:p-6 ${colors.bgMain}`}>
         {/* Page Header / Breadcrumb */}
-        <div className="mb-6">
+        <div className="mb-4">
           <nav className="text-xs text-[#666666] font-cormorant">
             <Link href="/admin" className="hover:text-black transition-colors">Admin</Link>
             {pathname !== "/admin" && (

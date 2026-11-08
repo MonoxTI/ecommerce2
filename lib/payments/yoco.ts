@@ -1,4 +1,3 @@
-// lib/payments/yoco.ts
 import { createHmac, timingSafeEqual } from "crypto";
 // Yoco Online Payments — docs: https://developer.yoco.com/online/
 
@@ -10,15 +9,16 @@ export const YOCO_CONFIG = {
 };
 
 // ─── CREATE CHECKOUT SESSION ──────────────────────────────────
-// Yoco creates a checkout session and returns a redirect URL
+// Used for orders (orderId) and for service-booking deposits (metadata.appointmentId).
 
 export async function createYocoCheckout(params: {
-  orderId:     string;
+  orderId?:     string;
   orderNumber?: string;  // short human-readable number, e.g. "00E363FD"
-  amountCents: number;   // in cents (ZAR)
-  currency?:   string;
-  successUrl:  string;
-  cancelUrl:   string;
+  metadata?:    Record<string, string>; // extra metadata, e.g. { appointmentId }
+  amountCents:  number;  // in cents (ZAR)
+  currency?:    string;
+  successUrl:   string;
+  cancelUrl:    string;
 }): Promise<{ id: string; redirectUrl: string }> {
   const res = await fetch(`${YOCO_CONFIG.apiUrl}/checkouts`, {
     method:  "POST",
@@ -33,8 +33,9 @@ export async function createYocoCheckout(params: {
       cancelUrl:   params.cancelUrl,
       failureUrl:  params.cancelUrl,
       metadata: {
-        orderId: params.orderId,
+        ...(params.orderId ? { orderId: params.orderId } : {}),
         ...(params.orderNumber ? { orderNumber: params.orderNumber } : {}),
+        ...(params.metadata ?? {}),
         source: "novaa",
       },
     }),
