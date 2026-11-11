@@ -5,7 +5,6 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { productsApi, cartApi, Product, Category } from "@/lib/api";
-import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";

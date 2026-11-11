@@ -1,5 +1,5 @@
 // app/api/admin/products/[id]/images/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/DB/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/admin/guard";
 import { ok, created, badRequest } from "@/lib/api/response";
@@ -18,6 +18,8 @@ export async function GET(
   const { id } = await params;
   const images = await db.productImage.findMany({
     where:   { productId: id },
+    select:  { id: true, url: true },
+    orderBy: { createdAt: "asc" },
   });
   return ok(images);
 }

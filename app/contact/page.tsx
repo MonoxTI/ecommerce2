@@ -5,6 +5,7 @@ import Link from "next/link";
 const SOCIALS = [
   { label: "IG", href: "https://instagram.com/novaa.co.za", name: "Instagram" },
   { label: "FB", href: "https://facebook.com/Novaa", name: "Facebook" },
+  { label: "TT", href: "https://www.tiktok.com/@novaa.co.za?lang=en-GB&is_from_webapp=1&sender_device=mobile&sender_web_id=7691893038608614918", name: "TikTok" }
 ];
 
 const CONTACT_INFO = [
@@ -17,11 +18,11 @@ const CONTACT_INFO = [
     title: "Call / WhatsApp",
     value: "+27 61 499 0918",
     href: "https://wa.me/276164990918",
-    description: "Mon–Fri, 9am–5pm ",
+    description: "Mon–Sat, 9am–5pm ",
   },
   {
     title: "Location",
-    value: "Johannesburg North, South Africa",
+    value: "Sunninghill, Gauteng, South Africa",
     href: "#",
     description: "Online store – nationwide shipping",
   },
@@ -48,14 +49,14 @@ export default function ContactPage() {
         <div className="max-w-screen-xl mx-auto">
           <Link 
             href="/" 
-            className="font-serif text-3xl font-semibold tracking-[0.15em] text-black hover:opacity-70 transition-opacity inline-block mb-8"
+            className="font-serif text-3xl tracking-[0.15em] text-black hover:opacity-70 transition-opacity inline-block mb-8"
           >
             novaa
           </Link>
-          <h1 className="font-serif text-4xl md:text-5xl font-light text-black tracking-wide">
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif" }} className=" text-4xl md:text-5xl font-light text-black tracking-wide">
             Get in Touch
           </h1>
-          <p className={`${colors.textMuted} text-lg mt-4 max-w-2xl font-serif font-light`}>
+          <p className={`${colors.textMuted} text-lg mt-4 max-w-2xl serif font-light`}>
             Have a question about your order, need styling advice, or just want to say hello? 
             We&apos;re here to help you look and feel extraordinary.
           </p>
@@ -107,14 +108,11 @@ export default function ContactPage() {
                 </a>
               ))}
             </div>
-            <p className={`${colors.textLight} text-center text-sm font-serif mt-6`}>
-              Tag <span className="font-medium text-black">@novaa.co.za</span> to be featured
-            </p>
           </div>
 
           {/* ── Optional: Quick Contact Form CTA ───────── */}
           <div className={`mt-20 p-8 md:p-12 ${colors.bgCream} text-center`}>
-            <h2 className="font-serif text-2xl md:text-3xl font-light text-black mb-4">
+            <h2 style={{ fontFamily: "'Cormorant Garamond', serif" }} className="font-serif text-2xl md:text-3xl font-light text-black mb-4">
               Prefer to write?
             </h2>
             <p className={`${colors.textMuted} text-base font-serif font-light mb-8 max-w-xl mx-auto`}>

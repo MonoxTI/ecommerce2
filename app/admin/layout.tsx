@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import NewBookingsBadge from "@/components/admin/NewBookingsBadge";
 
 const NAV = [
   { href: "/admin",            label: "Dashboard",  icon: "▦" },
@@ -102,6 +103,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <span className="text-base leading-none">{icon}</span>
                 <span className="tracking-wide hidden md:inline">{label}</span>
+                {href === "/admin/services" && <NewBookingsBadge />}
               </Link>
             );
           })}

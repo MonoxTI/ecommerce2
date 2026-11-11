@@ -200,6 +200,16 @@ function ImageManager({ productId, images, onUpdate }: {
   const [tab, setTab]         = useState<"file" | "url">("file");
   const fileRef               = useRef<HTMLInputElement>(null);
 
+  // Always load the real, complete list of saved images when the editor opens
+  useEffect(() => {
+    let alive = true;
+    apiFetch(`/api/admin/products/${productId}/images`).then(({ ok, data }) => {
+      if (alive && ok && Array.isArray(data)) onUpdate(data);
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
+
   async function addUrl() {
     if (!url.trim()) return;
     setLoading(true); setError("");
@@ -229,8 +239,11 @@ function ImageManager({ productId, images, onUpdate }: {
   }
 
   async function del(imageId: string) {
-    const { ok } = await apiFetch(`/api/admin/products/${productId}/images/${imageId}`, { method: "DELETE" });
-    if (ok) onUpdate(images.filter(img => img.id !== imageId));
+    if (!confirm("Remove this image?")) return;
+    setError("");
+    const { ok, error } = await apiFetch(`/api/admin/products/${productId}/images/${imageId}`, { method: "DELETE" });
+    if (!ok) return setError(error ?? "Failed to remove image");
+    onUpdate(images.filter(img => img.id !== imageId));
   }
 
   return (
@@ -240,8 +253,8 @@ function ImageManager({ productId, images, onUpdate }: {
           {images.map(img => (
             <div key={img.id} className="relative group aspect-square bg-[#1A1A1A] overflow-hidden">
               <img src={img.url} alt="" className="w-full h-full object-cover" />
-              <button onClick={() => del(img.id)}
-                className="absolute top-1 right-1 w-6 h-6 bg-red-600 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => del(img.id)} title="Remove image" aria-label="Remove image"
+                className="absolute top-1 right-1 w-7 h-7 bg-red-600 hover:bg-red-500 text-white text-sm flex items-center justify-center">
                 ×
               </button>
             </div>
@@ -743,7 +756,7 @@ export default function AdminProductsPage() {
         <ProductDrawer
           product={drawer === "edit" ? selected : null}
           categories={categories}
-          onClose={() => { setDrawer("closed"); setSelected(null); }}
+          onClose={() => { setDrawer("closed"); setSelected(null); loadProducts(search); }}
           onSaved={() => { setDrawer("closed"); setSelected(null); loadProducts(search); }}
         />
       )}

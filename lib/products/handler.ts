@@ -134,7 +134,7 @@ export async function handleGetProducts(req: NextRequest) {
     take: limit,
     include: {
       category: { select: { id: true, name: true, slug: true } },
-      images:   { select: { id: true, url: true }, take: 1 },
+      images:   { select: { id: true, url: true }, orderBy: { createdAt: "asc" }, take: 1 },
       variants: {
         select: {
           id:       true,
@@ -194,7 +194,8 @@ export async function handleGetAllProducts(req: NextRequest) {
     take: limit,
     include: {
       category: { select: { id: true, name: true, slug: true } },
-      images:   { select: { id: true, url: true }, take: 1 },
+      // Admin needs EVERY image (the editor shows and removes them); cards use images[0]
+      images:   { select: { id: true, url: true }, orderBy: { createdAt: "asc" } },
       variants: {
         select: { id: true, sku: true, price: true, stock: true, color: true, length: true, curlType: true },
       },
@@ -220,7 +221,7 @@ export async function handleGetProduct(
     where: { slug },
     include: {
       category: { select: { id: true, name: true, slug: true } },
-      images:   { select: { id: true, url: true } },
+      images:   { select: { id: true, url: true }, orderBy: { createdAt: "asc" } },
       variants: {
         orderBy: { price: "asc" },
         select: {

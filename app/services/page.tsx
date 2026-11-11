@@ -204,21 +204,23 @@ export default function ServicesPage() {
   }, {} as Record<string, Service[]>);
 
   return (
-    <div className="min-h-screen bg-[#F1F1F1] pt-24 pb-20 font-serif">
+    <div className="min-h-screen bg-[#F1F1F1] pt-24 pb-20 ">
       <div className="max-w-5xl mx-auto px-6 md:px-8">
 
         {/* Header */}
         <div className="mb-12 pb-8 border-b border-black/10">
-          <nav className="flex items-center gap-2 text-xs tracking-widest uppercase text-black/40 mb-6">
+          <div className="flex items-center gap-2 text-black/40 text-xs tracking-widest uppercase mb-4">
             <Link href="/" className="hover:text-black transition-colors">Home</Link>
             <span>›</span>
-            <span className="text-black/70">Services</span>
-          </nav>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-10 h-px bg-black/30" />
-            <span className="text-xs tracking-[0.3em] uppercase text-black/50">Book with Us</span>
+            <span className="text-[#666666]">Services</span>
           </div>
-          <h1 className="font-serif text-5xl md:text-6xl text-black font-light mb-3">Our Services</h1>
+          <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-px bg-black" />
+                <span className="text-black text-[0.65rem] tracking-[0.3em] uppercase">BOOK WITH US</span>
+              </div>
+          </div>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif" }} className="font-serif text-5xl md:text-6xl text-black font-light mb-3">Our Services</h1>
           <p className="text-[#666] text-base">Professional wig installation, makeup, and wig care services.</p>
         </div>
 
@@ -258,7 +260,7 @@ export default function ServicesPage() {
                   <div key={category}>
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-black/40">{CATEGORY_ICONS[category] ?? "◆"}</span>
-                      <h2 className="font-serif text-xl text-black font-light">
+                      <h2 style={{ fontFamily: "'Cormorant Garamond', serif" }} className="font-serif text-xl text-black font-light">
                         {CATEGORY_LABELS[category] ?? category}
                       </h2>
                       <div className="flex-1 h-px bg-black/8" />
@@ -275,7 +277,7 @@ export default function ServicesPage() {
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-1">
-                                <h3 className="font-serif text-lg text-black font-light">{svc.name}</h3>
+                                <h3 style={{ fontFamily: "'Cormorant Garamond', serif" }} className="font-serif text-lg text-black font-light">{svc.name}</h3>
                                 {selectedService?.id === svc.id && (
                                   <span className="text-[0.6rem] tracking-widest uppercase bg-black text-white px-2 py-0.5">Selected</span>
                                 )}
